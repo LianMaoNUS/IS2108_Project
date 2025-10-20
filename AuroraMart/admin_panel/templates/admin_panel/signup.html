@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuroraMart Admin Panel</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'admin_panel/css/login.css' %}">
+</head>
+
+<body>
+
+    <main class="login-container">
+        <nav class="auth-nav">
+            <a href="{% url 'admin_login' %}" >Login</a>
+            <a href="#" class="active">Sign up</a>
+        </nav>
+
+        <div class="logo-header">
+            {% load static %}
+            <img src="{% static 'admin_panel/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
+            <h2>Admin Panel</h2>
+        </div>
+        <!--Change to django form-->
+        <form class="login-form">
+            <input type="text" placeholder="Username" required>
+            <input type="password" placeholder="Password" required>
+            <button type="submit">Create account</button>
+        </form>
+    </main>
+
+</body>
+
+</html>
