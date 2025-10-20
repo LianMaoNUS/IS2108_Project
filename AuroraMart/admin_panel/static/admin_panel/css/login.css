@@ -1,0 +1,94 @@
+@font-face {
+    font-family: 'Spoof';
+    src: url('../SpoofTrialVF.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    margin: 0;
+    font-family: 'Spoof', sans-serif;
+    background-color: #d6e2f6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.login-container {
+    background-color: white;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    width: 360px;
+    text-align: center;
+}
+
+.auth-nav {
+    margin-bottom: 2rem;
+}
+
+.auth-nav a {
+    text-decoration: none;
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 1rem;
+    padding-bottom: 5px;
+}
+
+.auth-nav a:not(.active):hover {
+    color: #6c63ff;
+
+}
+
+.auth-nav a.active {
+    border-bottom: 2px solid #6c63ff; 
+    color: #6c63ff;
+}
+
+.logo-header .logo-img {
+    width: 200px;
+    height: 200px;
+    margin-bottom: 0.5rem;
+}
+
+.logo-header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.logo-header h2 {
+    margin: 0.25rem 0 2rem 0;
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: #555;
+}
+
+.login-form input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+.login-form button {
+    width: 100%;
+    padding: 12px;
+    background-color: #8da9e4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.login-form button:hover {
+    background-color: #4479ec; 
+}
