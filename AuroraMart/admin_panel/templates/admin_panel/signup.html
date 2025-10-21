@@ -23,7 +23,6 @@
             <img src="{% static 'admin_panel/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
             <h2>Admin Panel</h2>
         </div>
-        <!--Change to django form-->
         <form class="login-form" method="post">
             {% csrf_token %}
             {{ form.username }}
