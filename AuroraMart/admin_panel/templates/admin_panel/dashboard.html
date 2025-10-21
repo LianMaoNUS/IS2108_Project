@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - {{ page_title|default:"Dashboard" }}</title>
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'admin_panel/css/panel.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="admin-dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="{% static 'admin_panel/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
+            </div>
+
+            <div class="admin-profile">
+                <img src="https://t3.ftcdn.net/jpg/01/97/11/64/360_F_197116416_hpfTtXSoJMvMqU99n6hGP4xX0ejYa4M7.jpg"
+                    alt="Admin Profile" class="profile-pic">
+                <div class="profile-info">
+                    <!--login middleware transfer username and user role-->
+                    <p class="admin-name">Admin1</p>
+                    <p class="admin-role">Editor</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}?type=products"
+                            class="nav-item {% if type == 'products' %}active{% endif %}">
+                            <i class="fa-solid fa-box-open nav-icon"></i>
+                            Products
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}?type=customers"
+                            class="nav-item {% if type == 'customers' %}active{% endif %}">
+                            <i class="fa-solid fa-users nav-icon"></i>
+                            Customers
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}?type=inventory"
+                            class="nav-item {% if type == 'inventory' %}active{% endif %}">
+                            <i class="fa-solid fa-clipboard-list nav-icon"></i>
+                            Inventory
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="{% url 'admin_login' %}" class="logout-link">Log out</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>{{ page_title }}</h1>
+            </header>
+
+            <div class="controls-bar">
+                <p class="row-count">Showing: 10 rows</p>
+                <div class="action-buttons">
+                    <button class="add-new-btn">
+                        Add new <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <select class="sort-select">
+                        <option value="name">Sort</option>
+                        <option value="price">Price</option>
+                        <option value="sku">SKU</option>
+                    </select>
+                    <div class="search-box">
+                        <input type="text" placeholder="Search by name">
+                        <i class="fa-solid fa-search"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+
+                {% if queryset %}
+                <table>
+                    <thead>
+                        <tr>
+                            {% for header in headers %}
+                            <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if active_type == 'products' %}
+                        {% for item in queryset %}
+                        <tr>
+                            <td>{{ item.sku }}</td>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.category.name }}</td>
+                            <td>${{ item.unit_price }}</td>
+                            <td>{{ item.quantity_on_hand }}</td>
+                            <td>
+                                <button class="action-btn update-btn">Update</button>
+                                <button class="action-btn delete-btn">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% elif active_type == 'customers' %}
+                        {% for item in queryset %}
+                        <tr>
+                            <td>{{ item.user.username }}</td>
+                            <td>{{ item.user.email }}</td>
+                            <td>{{ item.get_employment_status_display }}</td>
+                            <td>
+                                <button class="action-btn update-btn">View Details</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                {% else %}
+                <div style="text-align: center; padding: 40px;">
+                    <p>No {{ page_title|lower }} to display.</p>
+                </div>
+                {% endif %}
+
+            </div>
+        </main>
+    </div>
+
+    <div id="form-modal" class="modal-overlay">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 id="modal-title">Add/Update Item</h2>
+                <span class="close-button">&times;</span>
+            </header>
+            
+            <div class="modal-body">
+                <form id="modal-form" method="post">
+                    {% csrf_token %}
+                    
+                    <p>Form fields will be loaded here... (add js event listener)</p>
+                    
+                    <button type="submit" class="submit-btn">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
