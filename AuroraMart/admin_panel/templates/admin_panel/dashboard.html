@@ -51,6 +51,13 @@
                             Inventory
                         </a>
                     </li>
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}?type=categories"
+                            class="nav-item {% if type == 'categories' %}active{% endif %}">
+                            <i class="fa-solid fa-tags nav-icon"></i>
+                            Categories
+                        </a>
+                    </li>
                 </ul>
             </nav>
 
@@ -84,42 +91,29 @@
 
             <div class="table-container">
 
-                {% if queryset %}
+                {% if table_rows %}
                 <table>
                     <thead>
                         <tr>
-                            {% for header in headers %}
-                            <th>{{ header }}</th>
+                            {% for field in fields %}
+                            <th>{{ field }}</th>
                             {% endfor %}
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if active_type == 'products' %}
-                        {% for item in queryset %}
+                        {% for row in table_rows %}
                         <tr>
-                            <td>{{ item.sku }}</td>
-                            <td>{{ item.product_name }}</td>
-                            <td>{{ item.category.name }}</td>
-                            <td>${{ item.unit_price }}</td>
-                            <td>{{ item.quantity_on_hand }}</td>
+                            {% for cell in row %}
+                            <td>{{ cell }}</td>
+                            {% endfor %}
+
                             <td>
                                 <button class="action-btn update-btn">Update</button>
                                 <button class="action-btn delete-btn">Delete</button>
                             </td>
                         </tr>
                         {% endfor %}
-                        {% elif active_type == 'customers' %}
-                        {% for item in queryset %}
-                        <tr>
-                            <td>{{ item.user.username }}</td>
-                            <td>{{ item.user.email }}</td>
-                            <td>{{ item.get_employment_status_display }}</td>
-                            <td>
-                                <button class="action-btn update-btn">View Details</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% endif %}
                     </tbody>
                 </table>
 
@@ -136,21 +130,53 @@
     <div id="form-modal" class="modal-overlay">
         <div class="modal-content">
             <header class="modal-header">
-                <h2 id="modal-title">Add/Update Item</h2>
+                <h2 id="modal-title">Add/Update {{type}}</h2>
                 <span class="close-button">&times;</span>
             </header>
-            
+
             <div class="modal-body">
                 <form id="modal-form" method="post">
                     {% csrf_token %}
-                    
-                    <p>Form fields will be loaded here... (add js event listener)</p>
-                    
+                    {% for field in form %}
+                    <div class="form-group">
+                        {{ field.label_tag }}
+
+                        {{ field }}
+
+                        {% if field.errors %}
+                        <div class="error-list">
+                            {{ field.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                     <button type="submit" class="submit-btn">Submit</button>
                 </form>
             </div>
         </div>
     </div>
 </body>
+<script>
+    // Modal functionality
+    const modal = document.getElementById('form-modal');
+    const closeButton = document.querySelector('.close-button');
+    const addNewBtn = document.querySelector('.add-new-btn');
+    document.addEventListener('DOMContentLoaded', () => {
+        modal.style.display = 'none';
+        addNewBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+
+        closeButton.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+</script>
 
 </html>
