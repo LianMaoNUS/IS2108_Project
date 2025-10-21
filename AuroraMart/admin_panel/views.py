@@ -6,8 +6,8 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.contrib import messages
-from .forms import AdminLoginForm, AdminSignupForm
-from AuroraMart.models import Product, Customer, Order, Admin
+from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
+from AuroraMart.models import Product, Customer, Order, Admin,Category
 
 class loginview(LoginView):
     form_class = AdminLoginForm
@@ -81,29 +81,69 @@ class signupview(View):
 class dashboardview(View):
 
     def get(self, request, *args, **kwargs):
+
+        view_configs = {
+            'products':   {'model': Product,  'form': ProductForm,  'title': 'Products'},
+            'customers':  {'model': Customer, 'form': CustomerForm, 'title': 'Customers'},
+            'inventory':  {'model': Order,    'form': OrderForm,    'title': 'Inventory'},
+            'categories': {'model': Category, 'form': CategoryForm, 'title': 'Categories'},
+        }
+
         view_type = self.request.GET.get('type', 'products')
-        queryset = None
-        page_title = ""
-        fields = ""
+        pk = kwargs.get('pk')
+        config = view_configs.get(view_type)
+        Model = config['model']
+        Form = config['form']
+    
+        page_title = config['title']
+        queryset = Model.objects.all()
+        instance = Model.objects.get(pk=pk) if pk else None
+        form = Form(instance=instance)
+        fields = [field.name for field in Model._meta.get_fields()]
+        table_rows = []
+
 
         if view_type == 'products':
-            queryset = Product.objects.all()
-            page_title = 'Products'
-            fields = [field.name for field in Product._meta.get_fields()]
+            for item in queryset:
+                table_rows.append([item.sku, item.product_name, item.category.name, f"${item.unit_price}", item.quantity_on_hand])
+    
         elif view_type == 'customers':
-            queryset = Customer.objects.all()
-            page_title = 'Customers'
-            fields = [field.name for field in Customer._meta.get_fields()]
+            for item in queryset:
+             table_rows.append([item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation])
+            
         elif view_type == 'inventory':
-            queryset = Order.objects.all()
-            page_title = 'Inventory'
-            fields = [field.name for field in Order._meta.get_fields()] 
+            for item in queryset:
+                table_rows.append([item.order_id, item.customer.username, item.status])
+            
+        elif view_type == 'categories':
+            fields = ["category_id", "name", "parent_category"]
+            for item in queryset:
+             parent_name = item.parent_category.name if item.parent_category else "None"
+            table_rows.append([item.category_id, item.name, parent_name])
 
         template_name = 'admin_panel/dashboard.html'
-
-        return render(request, template_name, {'type': view_type,'queryset': queryset, 'page_title': page_title,'fields': fields})
+        context = {
+            'type': view_type,
+            'queryset': queryset,
+            'page_title': page_title,
+            'fields': fields,
+            'form': form,
+            'table_rows': table_rows,
+        }
+        return render(request, template_name, context)
     
     def post(self, request, *args, **kwargs):
+        view_type = self.request.GET.get('type', 'products')
+        if view_type == 'categories':
+            category = Category.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
+            form = CategoryForm(request.POST, instance=category)
+            if form.is_valid():
+                form.save()
+                return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
+            else:
+                messages.error(request, "There were errors in the form. Please correct them.")
+            
+            #add others
         return render(request, self.template_name)
 
 

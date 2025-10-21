@@ -231,39 +231,30 @@ body {
 }
 
 .table-container table {
-    width: 100%;
     border-collapse: collapse;
+    width: 100%; 
 }
 
 .table-container th,
 .table-container td {
     padding: 15px 20px;
     border-bottom: 1px solid #eee;
-    white-space: nowrap; 
     text-align: left;
+    white-space: nowrap; /* This is important! It ensures columns don't wrap and the table expands */
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-}
-
-table th,
-table td {
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
-}
-
-table th {
+.table-container th {
     background-color: #f7f7f7;
     font-size: 0.9rem;
     color: #666;
     font-weight: 600;
     text-transform: uppercase;
+    position: sticky; /* Makes the header stick to the top when scrolling vertically */
+    top: 0;
+    z-index: 1; /* Ensures header is above the body content */
 }
 
-table tbody tr:last-child td {
+.table-container tbody tr:last-child td {
     border-bottom: none;
 }
 
@@ -295,7 +286,7 @@ table tbody tr:last-child td {
 
 /* The semi-transparent background overlay */
 .modal-overlay {
-    display: hidden; /* Initially hidden - flex */
+    display: hidden; 
     position: fixed; /* Stays in place even if you scroll */
     top: 0;
     left: 0;
@@ -318,6 +309,8 @@ table tbody tr:last-child td {
     min-width: 450px;
     max-width: 90%;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -327,6 +320,7 @@ table tbody tr:last-child td {
     border-bottom: 1px solid #eee;
     padding-bottom: 1rem;
     margin-bottom: 1rem;
+    flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -346,7 +340,12 @@ table tbody tr:last-child td {
     color: #333;
 }
 
-/* Basic styling for the submit button inside the modal */
+.modal-body {
+    max-height: 60vh; 
+    overflow-y: auto; 
+    padding-right: 1rem;
+}
+
 .modal-body .submit-btn {
     width: 100%;
     padding: 12px;
@@ -358,4 +357,71 @@ table tbody tr:last-child td {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+}
+
+/* Container for each label-input pair */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+/* Style for the <label> tags */
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+/* General styles for all text inputs, selects, and textareas */
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    color: #333;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box; /* Important */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Style for when a user clicks into a form field */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+}
+
+/* Style for displaying validation errors */
+.error-list {
+    color: #d93025;
+    font-size: 0.875rem;
+    list-style: none;
+    padding-left: 0;
+    margin-top: 0.5rem;
+}
+
+/* Style for the submit button */
+.submit-btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 1rem;
+    background-color: #6c63ff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.submit-btn:hover {
+    background-color: #5a52d8;
 }

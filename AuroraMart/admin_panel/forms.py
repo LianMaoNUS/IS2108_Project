@@ -1,6 +1,6 @@
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
-from AuroraMart.models import Admin
+from AuroraMart.models import Admin, Product, Customer, Order, Category
 
 class AdminLoginForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(
@@ -40,3 +40,23 @@ class AdminSignupForm(forms.ModelForm):
                 'class': 'login_form'
             }),
         }
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category']
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields  = ['customer_id','username', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
+
+class OrderForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ['order_id','customer','status']
+
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['category_id','name','parent_category']
