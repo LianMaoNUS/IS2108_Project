@@ -2,7 +2,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django import forms
 from AuroraMart.models import Admin, Product, Customer, Order, Category
 
-class AdminLoginForm(AuthenticationForm):
+class AdminLoginForm(forms.Form):
     username = forms.CharField(widget=forms.TextInput(
         attrs={
             'class': 'login_form', 

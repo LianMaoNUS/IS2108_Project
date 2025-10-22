@@ -1,26 +1,36 @@
 import re
 from django.shortcuts import render, redirect
+from django.contrib.auth.hashers import check_password
 from django.urls import reverse_lazy
-from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.contrib import messages
 from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
 from AuroraMart.models import Product, Customer, Order, Admin,Category
+from django.http import HttpResponse
 
-class loginview(LoginView):
+class loginview(View):
     form_class = AdminLoginForm
     template_name = 'admin_panel/login.html'
-    success_url = reverse_lazy('admin_panel/dashboard.html')
-
-    def form_valid(self, form):
-        messages.success(self.request, f"Welcome back, {form.get_user().username}!")
-        return super().form_valid(form)
-
-    def form_invalid(self, form):
-        messages.error(self.request, "Invalid username or password. Please try again.")
-        return super().form_invalid(form)
+    
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {"form": form})
+    
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            print( "form is valid")
+            username=form.cleaned_data['username']
+            password=form.cleaned_data['password']
+            try:
+                admin = Admin.objects.get(username=username)
+                if check_password(password, admin.password):
+                    request.session['hasLogin'] = True
+                    return redirect('admin_dashboard')
+            except Admin.DoesNotExist:
+                return render(request, self.template_name, {"form": form, "errors": "Invalid username or password."})
+        return render(request, self.template_name, {"form": form})
 
 class signupview(View):
     form_class = AdminSignupForm
@@ -163,6 +173,11 @@ class dashboardview(View):
             'sort_by': sort_by,
             'rows': rows,
         }
+
+        if (self.request.GET.get('logout') == 'true'):
+            request.session.flush()
+            return redirect('admin_login')
+        
         return render(request, template_name, context)
     
     def post(self, request, *args, **kwargs):
