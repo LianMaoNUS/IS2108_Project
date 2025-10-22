@@ -77,6 +77,9 @@ class Category(models.Model):
     # related_name helps in querying for subcategories easily.
     parent_category = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategories')
 
+    def __str__(self):
+        return self.name
+    
     class Meta:
         # Ensures plural form is "Categories" in the admin panel
         verbose_name_plural = "Categories"

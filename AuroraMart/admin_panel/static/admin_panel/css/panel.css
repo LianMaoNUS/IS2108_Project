@@ -7,6 +7,11 @@ body {
     min-height: 100vh;
 }
 
+a {
+    text-decoration: none;
+    color: inherit; 
+}
+
 .admin-dashboard {
     display: flex;
     width: 100%;
@@ -187,7 +192,7 @@ body {
     background-color: #5a52d8;
 }
 
-.sort-select {
+.sort-select{
     padding: 10px 15px;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -357,6 +362,13 @@ body {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
 }
 
 /* Container for each label-input pair */

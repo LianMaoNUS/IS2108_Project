@@ -90,36 +90,67 @@ class dashboardview(View):
         }
 
         view_type = self.request.GET.get('type', 'products')
+        sort_by = self.request.GET.get('sort_by')
+        rows = self.request.GET.get('rows', '10')
         pk = kwargs.get('pk')
         config = view_configs.get(view_type)
         Model = config['model']
         Form = config['form']
-    
         page_title = config['title']
         queryset = Model.objects.all()
         instance = Model.objects.get(pk=pk) if pk else None
         form = Form(instance=instance)
-        fields = [field.name for field in Model._meta.get_fields()]
+        fields = []
         table_rows = []
+        
+
+        if self.request.GET.get('action') == 'update':
+            id = self.request.GET.get('id')
+            data = Model.objects.get(pk=id)
+            form = Form(instance=data)
+        elif self.request.GET.get('action') == 'delete':
+            Model.objects.filter(pk=self.request.GET.get('id')).delete()
+            return redirect(f"{reverse_lazy('admin_dashboard')}?type={view_type}")
+        
+        def sort_rows(queryset=queryset, rows=rows):
+            try:
+                queryset = queryset[:int(rows)]
+            except (ValueError, TypeError):
+                queryset = queryset[:10]
 
 
         if view_type == 'products':
+            fields = ["sku", "product_name", "category", "unit_price", "quantity_on_hand"]
+            if sort_by in fields:
+                    queryset = queryset.order_by(sort_by)
+                    sort_rows()
             for item in queryset:
                 table_rows.append([item.sku, item.product_name, item.category.name, f"${item.unit_price}", item.quantity_on_hand])
     
         elif view_type == 'customers':
+            fields = ["customer_id", "username", "age", "gender", "employment_status", "occupation"]
+            if sort_by in fields:
+                    queryset = queryset.order_by(sort_by)
+                    sort_rows()
             for item in queryset:
              table_rows.append([item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation])
             
         elif view_type == 'inventory':
+            fields = ["order_id", "customer", "status"]
+            if sort_by in fields:
+                    queryset = queryset.order_by(sort_by)
+                    sort_rows()
             for item in queryset:
                 table_rows.append([item.order_id, item.customer.username, item.status])
             
         elif view_type == 'categories':
             fields = ["category_id", "name", "parent_category"]
+            if sort_by in fields:
+                    queryset = queryset.order_by(sort_by)
+                    sort_rows()
             for item in queryset:
              parent_name = item.parent_category.name if item.parent_category else "None"
-            table_rows.append([item.category_id, item.name, parent_name])
+             table_rows.append([item.category_id, item.name, parent_name])
 
         template_name = 'admin_panel/dashboard.html'
         context = {
@@ -129,22 +160,76 @@ class dashboardview(View):
             'fields': fields,
             'form': form,
             'table_rows': table_rows,
+            'sort_by': sort_by,
+            'rows': rows,
         }
         return render(request, template_name, context)
     
     def post(self, request, *args, **kwargs):
         view_type = self.request.GET.get('type', 'products')
-        if view_type == 'categories':
-            category = Category.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
-            form = CategoryForm(request.POST, instance=category)
-            if form.is_valid():
-                form.save()
-                return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
-            else:
-                messages.error(request, "There were errors in the form. Please correct them.")
-            
-            #add others
-        return render(request, self.template_name)
+        action = self.request.GET.get('action')
+
+        if action == 'update':
+            id = self.request.GET.get('id')
+            if view_type == 'products':
+                product = Product.objects.get(pk=id)
+                form = ProductForm(request.POST, instance=product)
+                if form.is_valid():
+                    product.sku = form.cleaned_data['sku']
+                    product.product_name = form.cleaned_data['product_name']
+                    product.category = form.cleaned_data['category']    
+                    product.unit_price = form.cleaned_data['unit_price']
+                    product.quantity_on_hand = form.cleaned_data['quantity_on_hand']
+                    product.save()
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=products")
+                else:
+                    #error handling, filter,table styles
+                    messages.error(request, "There were errors in the form. Please correct them.")
+            elif view_type == 'categories':
+                category = Category.objects.get(pk=id)
+                form = CategoryForm(request.POST, instance=category)
+                if form.is_valid():
+                    category.name = form.cleaned_data['name']
+                    category.parent_category = form.cleaned_data['parent_category']    
+                    category.save()
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
+                else:
+                    messages.error(request, "There were errors in the form. Please correct them.")
+            elif view_type == 'customers':
+                customer = Customer.objects.get(pk=id)
+                form = CustomerForm(request.POST, instance=customer)    
+                if form.is_valid():
+                    customer.username = form.cleaned_data['username']
+                    customer.age = form.cleaned_data['age']
+                    customer.gender = form.cleaned_data['gender']    
+                    customer.employment_status = form.cleaned_data['employment_status']
+                    customer.occupation = form.cleaned_data['occupation']
+                    customer.save() 
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=customers")   
+        else:
+             if view_type == 'products':
+                product = Product.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
+                form = ProductForm(request.POST, instance=product)
+                if form.is_valid():
+                    form.save()
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=products")
+                else:
+                    messages.error(request, "There were errors in the form. Please correct them.")
+             elif view_type == 'categories':
+                category = Category.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
+                form = CategoryForm(request.POST, instance=category)
+                if form.is_valid():
+                    form.save()
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
+             elif view_type == 'customers':
+                customer = Customer.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
+                form = CustomerForm(request.POST, instance=customer)    
+                if form.is_valid():
+                    form.save()
+                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=customers")
+                else:
+                    messages.error(request, "There were errors in the form. Please correct them.")
+        return redirect(f"{reverse_lazy('admin_dashboard')}")
 
 
 def index(request):
