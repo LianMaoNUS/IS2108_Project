@@ -6,7 +6,9 @@ from django.contrib.auth.views import LoginView
 from django.views import View
 from django.contrib import messages
 from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
-from AuroraMart.models import Product, Customer, Order, Admin,Category
+from AuroraMart.models import User
+from customer_website.models import Customer
+from admin_panel.models import Admin,Order,Category,Product
 from django.http import HttpResponse
 from django.core.exceptions import ValidationError
 
@@ -31,6 +33,7 @@ class loginview(View):
                     request.session['username'] = username
                     request.session['role'] = admin.role
                     return redirect('admin_dashboard')
+                
             except Admin.DoesNotExist:
                 return render(request, self.template_name, {"form": form, "errors": "Invalid username or password."})
         return render(request, self.template_name, {"form": form})
@@ -57,37 +60,40 @@ class signupview(View):
         def check_password(password,check_password):
             if  password != check_password:
                 return "Passwords do not match."
-            if len(password) < 8:
+            elif len(password) < 8:
                 return "Password must be at least 8 characters long."
-            if not re.search(r'[A-Z]', password):
+            elif not re.search(r'[A-Z]', password):
                 return "Password must contain at least one uppercase letter."
-            if not re.search(r'[a-z]', password):
+            elif not re.search(r'[a-z]', password):
                 return "Password must contain at least one lowercase letter."
-            if not re.search(r'[0-9]', password):
+            elif not re.search(r'[0-9]', password):
                 return "Password must contain at least one digit."
-            if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            elif not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
                 return "Password must contain at least one special character."
-            return "Valid"
+            else:
+                return "Valid"
         
         if form.is_valid():
             username=form.cleaned_data['username']
             password=form.cleaned_data['password']
             checked_password=form.cleaned_data['password_check']
-            username_check =check_username(username)
-            password_check =check_password(password,checked_password)
+            username_check = check_username(username)
+            password_check = check_password(password,checked_password)
             if username_check != "Valid":
                 return render(request, self.template_name, {"form": form, "error": username_check})
             elif password_check != "Valid":
                 return render(request, self.template_name, {"form": form, "error": password_check})
             else:
                 new_admin = Admin(
-                    admin_id="A" + form.cleaned_data['username'],
                     username=username,
                     password=password,
                     role=form.cleaned_data['role']
                 )
                 new_admin.save()
                 return redirect('admin_login')
+        else:
+            print(form.errors.as_json())
+            
         return render(request, self.template_name, {"form": form})
 
 
