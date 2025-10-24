@@ -51,7 +51,7 @@ class Customer(User):
     def save(self, *args, **kwargs):
         if not self.password.startswith(('pbkdf2_sha256$', 'bcrypt$', 'argon2')):
             self.password = make_password(self.password)
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 class Admin(User):
@@ -66,7 +66,7 @@ class Admin(User):
     def save(self, *args, **kwargs):
         if not self.password.startswith(('pbkdf2_sha256$', 'bcrypt$', 'argon2')):
             self.password = make_password(self.password)
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 class Category(models.Model):

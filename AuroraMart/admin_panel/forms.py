@@ -51,6 +51,8 @@ class CustomerForm(forms.ModelForm):
         model = Customer
         fields  = ['customer_id','username', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
 
+    
+
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
