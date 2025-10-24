@@ -1,3 +1,9 @@
+    function closeModal() {
+        modal.style.display = 'none';
+        newUrl = currentUrl.split('&')[0];
+        window.history.replaceState({}, '', newUrl);
+    }
+    
     document.addEventListener('DOMContentLoaded', function () {
 
         modal = document.getElementById('form-modal');
@@ -9,26 +15,16 @@
             modal.style.display = 'flex';
         }
 
-        if (addNewBtn) {
-            addNewBtn.addEventListener('click', () => {
-                modal.style.display = 'flex';
-            });
-        }
-
         if (closeButton) {
             closeButton.addEventListener('click', () => {
                 document.getElementById('modal-form').reset();
-                modal.style.display = 'none';
-                const newUrl = currentUrl.split('&')[0];
-                window.history.replaceState({}, '', newUrl);
+                closeModal()
             });
         }
 
         window.addEventListener('click', (event) => {
             if (event.target == modal) {
-                modal.style.display = 'none';
-                const newUrl = currentUrl.split('&')[0];
-                window.history.replaceState({}, '', newUrl);
+                closeModal()
             }
         });
 
@@ -46,8 +42,7 @@
 
             window.location.href = url.toString();
         }
-
-        // Add event listeners to both dropdowns
+        
         if (sortBySelect) {
             sortBySelect.addEventListener('change', updateUrlAndRefresh);
         }
