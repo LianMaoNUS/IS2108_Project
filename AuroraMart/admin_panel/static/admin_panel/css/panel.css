@@ -229,10 +229,12 @@ a {
 
 /* Table Styles */
 .table-container {
-    overflow-x: auto;
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    overflow-x: auto; 
+    border: 1px solid #ddd; 
+    border-radius: 8px;
+    margin-top: 1rem; 
+    background-color: white;
 }
 
 .table-container table {
