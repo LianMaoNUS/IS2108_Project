@@ -8,6 +8,7 @@ from django.contrib import messages
 from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
 from AuroraMart.models import Product, Customer, Order, Admin,Category
 from django.http import HttpResponse
+from django.core.exceptions import ValidationError
 
 class loginview(View):
     form_class = AdminLoginForm
@@ -218,7 +219,12 @@ class dashboardview(View):
                     customer.gender = form.cleaned_data['gender']    
                     customer.employment_status = form.cleaned_data['employment_status']
                     customer.occupation = form.cleaned_data['occupation']
-                    customer.save() 
+                    customer.education = form.cleaned_data['education']
+                    customer.household_size = form.cleaned_data['household_size']
+                    customer.has_children = form.cleaned_data['has_children']
+                    customer.monthly_income_sgd = form.cleaned_data['monthly_income_sgd']
+                    customer.preferred_category = form.cleaned_data['preferred_category']
+                    customer.save()
                     return redirect(f"{reverse_lazy('admin_dashboard')}?type=customers")   
         else:
              if view_type == 'products':
