@@ -27,6 +27,8 @@ class loginview(View):
                 admin = Admin.objects.get(username=username)
                 if check_password(password, admin.password):
                     request.session['hasLogin'] = True
+                    request.session['username'] = username
+                    request.session['role'] = admin.role
                     return redirect('admin_dashboard')
             except Admin.DoesNotExist:
                 return render(request, self.template_name, {"form": form, "errors": "Invalid username or password."})
@@ -112,8 +114,13 @@ class dashboardview(View):
         form = Form(instance=instance)
         fields = []
         table_rows = []
-        
+        username = request.session["username"]
+        user_role = request.session["role"]
 
+        if (self.request.GET.get('logout') == 'true'):
+            request.session.flush()
+            return redirect('admin_login')
+        
         if self.request.GET.get('action') == 'update':
             id = self.request.GET.get('id')
             data = Model.objects.get(pk=id)
@@ -122,42 +129,37 @@ class dashboardview(View):
             Model.objects.filter(pk=self.request.GET.get('id')).delete()
             return redirect(f"{reverse_lazy('admin_dashboard')}?type={view_type}")
         
-        def sort_rows(queryset=queryset, rows=rows):
-            try:
-                queryset = queryset[:int(rows)]
-            except (ValueError, TypeError):
-                queryset = queryset[:10]
+        def sort_rows(queryset=queryset, rows=rows,sort_by=sort_by):
+            if sort_by in fields:
+                 queryset = queryset.order_by(sort_by)
+                 try:
+                    queryset = queryset[:int(rows)]
+                 except (ValueError, TypeError):
+                    queryset = queryset[:10]
+            return queryset
 
 
         if view_type == 'products':
             fields = ["sku", "product_name", "category", "unit_price", "quantity_on_hand"]
-            if sort_by in fields:
-                    queryset = queryset.order_by(sort_by)
-                    sort_rows()
+            queryset = sort_rows()
             for item in queryset:
                 table_rows.append([item.sku, item.product_name, item.category.name, f"${item.unit_price}", item.quantity_on_hand])
     
         elif view_type == 'customers':
             fields = ["customer_id", "username", "age", "gender", "employment_status", "occupation"]
-            if sort_by in fields:
-                    queryset = queryset.order_by(sort_by)
-                    sort_rows()
+            queryset = sort_rows()
             for item in queryset:
              table_rows.append([item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation])
             
         elif view_type == 'inventory':
             fields = ["order_id", "customer", "status"]
-            if sort_by in fields:
-                    queryset = queryset.order_by(sort_by)
-                    sort_rows()
+            queryset = sort_rows()
             for item in queryset:
                 table_rows.append([item.order_id, item.customer.username, item.status])
             
         elif view_type == 'categories':
             fields = ["category_id", "name", "parent_category"]
-            if sort_by in fields:
-                    queryset = queryset.order_by(sort_by)
-                    sort_rows()
+            queryset = sort_rows()
             for item in queryset:
              parent_name = item.parent_category.name if item.parent_category else "None"
              table_rows.append([item.category_id, item.name, parent_name])
@@ -172,11 +174,9 @@ class dashboardview(View):
             'table_rows': table_rows,
             'sort_by': sort_by,
             'rows': rows,
+            'username': username,
+            'user_role': user_role
         }
-
-        if (self.request.GET.get('logout') == 'true'):
-            request.session.flush()
-            return redirect('admin_login')
         
         return render(request, template_name, context)
     
@@ -198,7 +198,6 @@ class dashboardview(View):
                     product.save()
                     return redirect(f"{reverse_lazy('admin_dashboard')}?type=products")
                 else:
-                    #error handling, filter,table styles
                     messages.error(request, "There were errors in the form. Please correct them.")
             elif view_type == 'categories':
                 category = Category.objects.get(pk=id)
@@ -245,9 +244,6 @@ class dashboardview(View):
                 else:
                     messages.error(request, "There were errors in the form. Please correct them.")
         return redirect(f"{reverse_lazy('admin_dashboard')}")
-
-
-def index(request):
-    return render(request, 'admin_panel/index.html')
+    
 
 

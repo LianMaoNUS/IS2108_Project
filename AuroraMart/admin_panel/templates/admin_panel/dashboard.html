@@ -20,12 +20,12 @@
             </div>
 
             <div class="admin-profile">
-                <img src="https://t3.ftcdn.net/jpg/01/97/11/64/360_F_197116416_hpfTtXSoJMvMqU99n6hGP4xX0ejYa4M7.jpg"
+                <img src="https://www.pngmart.com/files/21/Admin-Profile-Vector-PNG-Clipart.png"
                     alt="Admin Profile" class="profile-pic">
                 <div class="profile-info">
                     <!--login middleware transfer username and user role-->
-                    <p class="admin-name">Admin1</p>
-                    <p class="admin-role">Editor</p>
+                    <p class="admin-name">{{username}}</p>
+                    <p class="admin-role">{{user_role}}</p>
                 </div>
             </div>
 
@@ -75,9 +75,11 @@
             <div class="controls-bar">
                 <p class="row-count">Showing: {{rows}} rows</p>
                 <div class="action-buttons">
+                    {% if user_role == "EDITOR" %}
                     <button class="add-new-btn">
-                        Add new <i class="fa-solid fa-plus"></i>
+                        <a href="{% url 'admin_dashboard' %}?type={{type}}&modal=show">Add new <i class="fa-solid fa-plus"></i></a>
                     </button>
+                    {% endif %}
                     <label for="sort-select">Sort by:</label>
                     {% if fields %}
                     <select id="sort-by-select" class="sort-select">
@@ -97,10 +99,7 @@
                         <option value="20" {% if rows == '20' %}selected{% endif %}>20</option>
                         <option value="50" {% if rows == '50' %}selected{% endif %}>50</option>
                     </select>
-                    <div class="search-box">
-                        <input type="text" placeholder="Search by name">
-                        <i class="fa-solid fa-search"></i>
-                    </div>
+
                 </div>
             </div>
 
@@ -113,7 +112,9 @@
                             {% for field in fields %}
                             <th>{{ field }}</th>
                             {% endfor %}
+                            {% if user_role == "EDITOR" %}
                             <th>Action</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -124,11 +125,13 @@
                             {% endfor %}
 
                             <td>
+                                {% if user_role == "EDITOR" %}
                                 <button class="action-btn update-btn"><a
                                         href="{% url 'admin_dashboard' %}?type={{type}}&modal=show&action=update&id={{row.0}}">Update</a></button>
                                 <button class="action-btn delete-btn"
                                     onclick="return confirm('Are you sure you want to delete this record (Note that sub-records will be deleted with main records)');"><a
                                         href="{% url 'admin_dashboard' %}?type={{type}}&action=delete&id={{row.0}}">Delete</a></button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
