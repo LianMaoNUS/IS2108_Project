@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.utils import timezone
 from AuroraMart.models import User
 from django.contrib.auth.hashers import make_password, check_password
 
@@ -40,6 +41,7 @@ class Customer(User):
     has_children = models.BooleanField(default=False)
     monthly_income_sgd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     preferred_category = models.CharField(max_length=100, null=True, blank=True,default='General')
+    date_joined = models.DateTimeField(default=timezone.now, editable=False)
 
     def save(self, *args, **kwargs):
         if not self.customer_id:

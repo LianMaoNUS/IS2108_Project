@@ -9,6 +9,8 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'admin_panel/css/panel.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="{% static 'admin_panel/Logo.png' %}" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{% static 'admin_panel/script/dashboard.js' %}"></script>
 </head>
 
@@ -32,7 +34,13 @@
 
             <nav class="sidebar-nav">
                 <ul>
-                    <!--may add statistics-->
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}?type=dashboard"
+                            class="nav-item {% if type == 'dashboard' %}active{% endif %}">
+                            <i class="fa-solid fa-gauge nav-icon"></i>
+                            Dashboard
+                        </a>
+                    </li>
                     <li>
                         <a href="{% url 'admin_dashboard' %}?type=products"
                             class="nav-item {% if type == 'products' %}active{% endif %}">
@@ -73,7 +81,7 @@
             <header class="content-header">
                 <h1>{{ page_title }}</h1>
             </header>
-
+            {% if type != 'dashboard' %}
             <div class="controls-bar">
                 <p class="row-count">Showing: {{rows}} rows</p>
                 <div class="action-buttons">
@@ -85,8 +93,9 @@
                     {% endif %}
                     {% if table_rows %}
                     <button class="export-btn">
-                        <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&export=csv">Export to CSV <i
-                                class="fa-solid fa-file-export"></i></a>
+                        <a
+                            href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&export=csv">Export
+                            to CSV <i class="fa-solid fa-file-export"></i></a>
                     </button>
                     <label for="sort-select">Sort by:</label>
                     <select id="sort-by-select" class="sort-select">
@@ -155,6 +164,86 @@
 
                 </div>
             </div>
+            {% else %}
+            <div class="dashboard-grid">
+                <div class="dashboard-section sales-performance">
+                    <h2>Sales Performance 💰</h2>
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <h3>Total Revenue (This Month)</h3>
+                            <p>${{ total_revenue_month|floatformat:2 }}</p> 
+                        </div>
+                        <div class="stat-card">
+                            <h3>Average Order Value (AOV)</h3>
+                            <p>${{ average_order_value|floatformat:2 }}</p> 
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Sales Trend (Last 30 Days)</h3>
+                        <a id="chart-labels" style="display: none;">{{chart_labels|default:'[]'|safe}}</a>
+                        <a id="chart-data" style="display: none;">{{chart_data|default:'[]'|safe}}</a>
+                        <canvas id="salesTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="dashboard-section customer-activity">
+                    <h2>Customer Activity 🧑‍🤝‍🧑</h2>
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <h3>New Customers (This Month)</h3>
+                            <p>{{ new_customers_month }}</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Customers</h3>
+                            <p>{{ total_customers }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section product-inventory">
+                    <h2>Product & Inventory 📦</h2>
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <h3>Low Stock Items</h3>
+                            <p>{{ low_stock_count }}</p> 
+                            {# You could add a link here: <a href="{% url 'admin_dashboard' %}?type=products&filter=low_stock">View Items</a> #}
+                        </div>
+                    </div>
+                    <div class="list-container">
+                        <h3>Top Selling Products (This Month)</h3>
+                        <ul>
+                            {% for product in top_selling_products %}
+                                <li>{{ product.name }} ({{ product.units_sold }} units)</li>
+                            {% empty %}
+                                <li>No sales data available.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="dashboard-section order-status">
+                    <h2>Order Status 🚚</h2>
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <h3>Pending Orders</h3>
+                            <p>{{ pending_orders_count }}</p>
+                        </div>
+                    </div>
+                    <div class="list-container recent-orders">
+                        <h3>Recent Orders</h3>
+                        <ul>
+                            {% for order in recent_orders %}
+                                <li>Order #{{ order.order_id }} - {{ order.customer.username }} (${{ order.total_value|floatformat:2 }})</li> 
+                            {% empty %}
+                                <li>No recent orders.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+            </div> 
+        {% endif %} 
         </main>
     </div>
 
