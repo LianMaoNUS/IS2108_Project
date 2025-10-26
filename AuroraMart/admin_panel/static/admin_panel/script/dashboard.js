@@ -5,7 +5,6 @@
     }
     
     document.addEventListener('DOMContentLoaded', function () {
-
         modal = document.getElementById('form-modal');
         closeButton = document.querySelector('.close-button');
         addNewBtn = document.querySelector('.add-new-btn');
@@ -48,6 +47,40 @@
         }
         if (rowsPerPageSelect) {
             rowsPerPageSelect.addEventListener('change', updateUrlAndRefresh);
+        }
+
+        const chart = document.getElementById('salesTrendChart')?.getContext('2d');
+        
+        if (chart) {
+            const labels = document.getElementById('chart-labels').innerHTML
+            const dataValues = document.getElementById('chart-data').innerHTML
+            console.log(labels);
+            console.log(dataValues);
+            
+            
+            new Chart(chart,{
+                    type: 'line', 
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Daily Sales ($)', 
+                            data: dataValues,
+                            borderColor: 'rgb(75, 192, 192)', // Line color
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)', // Optional fill color
+                            fill: true, // Enable fill color under the line
+                            tension: 0.1 // Makes the line slightly curved
+                        }]
+                    },
+                    options :{
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+            })
         }
 
     });

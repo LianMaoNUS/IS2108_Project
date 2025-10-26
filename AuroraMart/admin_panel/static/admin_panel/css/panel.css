@@ -5,11 +5,10 @@
     font-style: normal;
 }
 
-/* General Body Styles */
 body {
     margin: 0;
     font-family: 'Poppins', sans-serif;
-    background-color: #d6e2f6; /* Light blue background for the page */
+    background-color: #d6e2f6; 
     display: flex;
     min-height: 100vh;
 }
@@ -22,17 +21,20 @@ a {
 .admin-dashboard {
     display: flex;
     width: 100%;
+    min-height: 100vh;
 }
 
-/* Sidebar Styles */
+
 .sidebar {
-    width: 280px; /* Fixed width as per wireframe */
+    width: 280px;
     background-color: #fff;
     padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Pushes logout to bottom */
+    justify-content: space-between; 
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    display: flex;         
+    flex-direction: column;
 }
 
 .sidebar-header {
@@ -136,6 +138,7 @@ a {
     padding-top: 2rem;
     border-top: 1px solid #eee;
     text-align: center;
+    margin-top: auto;
 }
 
 .logout-link {
@@ -151,12 +154,99 @@ a {
 }
 
 
-/* Main Content Styles */
 .main-content {
     flex-grow: 1;
     padding: 2rem 3rem;
     background-color: #d6e2f6; /* Same as body for continuity */
     min-width: 0;
+}
+
+.dashboard-grid {
+    display: grid;
+    /* Explicitly create two equal columns */
+    grid-template-columns: 1fr 1fr; 
+    gap: 20px; /* Space between sections */
+    padding: 20px 0; /* Add some padding */
+}
+
+.dashboard-section.sales-performance,
+.dashboard-section.order-status {
+    grid-column: span 2; /* Make this section take up 2 columns */
+}
+
+.dashboard-section {
+    background-color: #ffffff; /* White background for sections */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Responsive stat cards */
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+}
+
+.chart-container {
+    height: 300px;
+    width: 100%;
+    position: relative;
+    margin-top: 20px;
+}
+
+.list-container {
+    margin-top: 20px;
+}
+
+.list-container h3 {
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+
+.list-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.list-container li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9em;
+}
+
+.list-container li:last-child {
+    border-bottom: none;
 }
 
 .content-header h1 {
