@@ -51,7 +51,7 @@ class Product(models.Model):
     product_rating = models.FloatField(default=0.0)
     quantity_on_hand = models.PositiveIntegerField(default=0)
     reorder_quantity = models.PositiveIntegerField(default=10)
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='products')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
 
 class Order(models.Model):
     STATUS_CHOICES = [
