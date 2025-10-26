@@ -1,4 +1,7 @@
 import re
+import csv
+import datetime
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.hashers import check_password
 from django.urls import reverse_lazy
@@ -9,8 +12,14 @@ from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,Ord
 from AuroraMart.models import User
 from customer_website.models import Customer
 from admin_panel.models import Admin,Order,Category,Product
-from django.http import HttpResponse
-from django.core.exceptions import ValidationError
+
+def error_check(check):
+    errors =[]
+    for error_list in check:
+            for error_message in error_list:
+                errors.append(error_message)
+    return errors
+
 
 class loginview(View):
     form_class = AdminLoginForm
@@ -22,6 +31,7 @@ class loginview(View):
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
+        error_message = []
         if form.is_valid():
             print( "form is valid")
             username=form.cleaned_data['username']
@@ -33,10 +43,12 @@ class loginview(View):
                     request.session['username'] = username
                     request.session['role'] = admin.role
                     return redirect('admin_dashboard')
+                else:
+                    error_message.append("Incorrect password")
                 
             except Admin.DoesNotExist:
-                return render(request, self.template_name, {"form": form, "errors": "Invalid username or password."})
-        return render(request, self.template_name, {"form": form})
+                error_message.append("User not found")
+        return render(request, self.template_name, {"form": form,"error_message": error_message})
 
 class signupview(View):
     form_class = AdminSignupForm
@@ -50,212 +62,176 @@ class signupview(View):
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
-        def check_username(username):
-            if len(username) < 6:
-                return "Username must be at least 6 characters long."
-            if not re.match(r'^[a-zA-Z0-9_]+$', username):
-                return "Username can only contain letters, numbers, and underscores."
-            return "Valid"
-        
-        def check_password(password,check_password):
-            if  password != check_password:
-                return "Passwords do not match."
-            elif len(password) < 8:
-                return "Password must be at least 8 characters long."
-            elif not re.search(r'[A-Z]', password):
-                return "Password must contain at least one uppercase letter."
-            elif not re.search(r'[a-z]', password):
-                return "Password must contain at least one lowercase letter."
-            elif not re.search(r'[0-9]', password):
-                return "Password must contain at least one digit."
-            elif not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-                return "Password must contain at least one special character."
-            else:
-                return "Valid"
         
         if form.is_valid():
-            username=form.cleaned_data['username']
-            password=form.cleaned_data['password']
-            checked_password=form.cleaned_data['password_check']
-            username_check = check_username(username)
-            password_check = check_password(password,checked_password)
-            if username_check != "Valid":
-                return render(request, self.template_name, {"form": form, "error": username_check})
-            elif password_check != "Valid":
-                return render(request, self.template_name, {"form": form, "error": password_check})
-            else:
                 new_admin = Admin(
-                    username=username,
-                    password=password,
+                    username=form.cleaned_data['username'],
+                    password=form.cleaned_data['password'],
                     role=form.cleaned_data['role']
                 )
                 new_admin.save()
-                return redirect('admin_login')
+                return render(request, 'admin_panel/login', {"form": form})
         else:
-            print(form.errors.as_json())
+            return render(request,self.template_name,{"form": form, "error_message": error_check(error_check(form.errors.values()))})
             
-        return render(request, self.template_name, {"form": form})
-
 
 class dashboardview(View):
+    template_name = 'admin_panel/dashboard.html'
+    view_configs = {
+        'products': {
+            'model': Product, 'form': ProductForm, 'title': 'Products',
+            'fields': ["sku", "product_name", "category", "unit_price", "quantity_on_hand"],
+            'rows': lambda item: [item.sku, item.product_name, item.category, f"${item.unit_price}", item.quantity_on_hand]
+        },
+        'customers': {
+            'model': Customer, 'form': CustomerForm, 'title': 'Customers',
+            'fields': ["customer_id", "username", "age", "gender", "employment_status", "occupation","education","household_size","has_children","monthly_income_sgd","preferred_category"],
+            'rows': lambda item: [item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation,item.education,item.household_size,item.has_children,item.monthly_income_sgd,item.preferred_category]
+        },
+        'orders': {
+            'model': Order, 'form': OrderForm, 'title': 'Orders',
+            'fields': ["order_id", "customer", "status"],
+            'rows': lambda item: [item.order_id, item.customer.username, item.status]
+        },
+        'categories': {
+            'model': Category, 'form': CategoryForm, 'title': 'Categories',
+            'fields': ["category_id", "name", "parent_category"],
+            'rows': lambda item: [item.category_id, item.name, item.parent_category.name if item.parent_category else "None"]
+        },
+    }
 
-    def get(self, request, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs):
+        self.view_type = request.GET.get('type', 'products')
+        self.config = self.view_configs.get(self.view_type)
+        if not self.config:
+            return redirect('admin_dashboard')
+            
+        self.Model = self.config['model']
+        self.Form = self.config['form']
+        return super().dispatch(request, *args, **kwargs)
+    
+    def export_to_csv(self,context):
+        response = HttpResponse(
+            content_type='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename="{self.view_type}_{datetime.date.today()}.csv"'
+            },
+        )
+        writer = csv.writer(response)
+        queryset = self.Model.objects.all()
+        print(context)
+        fields = self.config['fields']
+        sort_by = self.request.GET.get('sort_by', fields[0]) 
 
-        view_configs = {
-            'products':   {'model': Product,  'form': ProductForm,  'title': 'Products'},
-            'customers':  {'model': Customer, 'form': CustomerForm, 'title': 'Customers'},
-            'inventory':  {'model': Order,    'form': OrderForm,    'title': 'Inventory'},
-            'categories': {'model': Category, 'form': CategoryForm, 'title': 'Categories'},
-        }
-
-        view_type = self.request.GET.get('type', 'products')
-        sort_by = self.request.GET.get('sort_by')
+        if sort_by in fields:
+            queryset = queryset.order_by(sort_by)
+        
+        writer.writerow(fields)
+        row_builder = self.config['rows']
+        for item in queryset:
+            row_data = row_builder(item)
+            processed_row = [cell if cell not in [None, ""] else "None" for cell in row_data]
+            writer.writerow(processed_row)
+            
+        return response
+    
+    def get_context_data(self, **kwargs):
+        queryset = self.Model.objects.all()
+        fields = self.config['fields']
+        sort_by = self.request.GET.get('sort_by',fields[0])
         rows = self.request.GET.get('rows', '10')
-        pk = kwargs.get('pk')
-        config = view_configs.get(view_type)
-        Model = config['model']
-        Form = config['form']
-        page_title = config['title']
-        queryset = Model.objects.all()
-        instance = Model.objects.get(pk=pk) if pk else None
-        form = Form(instance=instance)
-        fields = []
-        table_rows = []
-        username = request.session["username"]
-        user_role = request.session["role"]
+        
+        if sort_by in fields:
+            queryset = queryset.order_by(sort_by)
+        
+        try:
+            queryset = queryset[:int(rows)]
+        except (ValueError, TypeError):
+            queryset = queryset[:10]
 
+        table_rows = [self.config['rows'](item) for item in queryset]
+
+        context = {
+            'type': self.view_type,
+            'page_title': self.config['title'],
+            'fields': fields,
+            'table_rows': table_rows,
+            'sort_by': sort_by,
+            'rows': rows,
+            'username': self.request.session.get("username"),
+            'user_role': self.request.session.get("role"),
+            'admin_details': self.request.GET.get('admin_details'),
+            'action': self.request.GET.get('action','')
+        }
+        
+        context.update(kwargs)
+        return context
+    
+    def get(self, request, *args, **kwargs):
         if (self.request.GET.get('logout') == 'true'):
             request.session.flush()
             return redirect('admin_login')
         
-        if self.request.GET.get('action') == 'update':
-            id = self.request.GET.get('id')
-            data = Model.objects.get(pk=id)
-            form = Form(instance=data)
-        elif self.request.GET.get('action') == 'delete':
-            Model.objects.filter(pk=self.request.GET.get('id')).delete()
-            return redirect(f"{reverse_lazy('admin_dashboard')}?type={view_type}")
         
-        def sort_rows(queryset=queryset, rows=rows,sort_by=sort_by):
-            if sort_by in fields:
-                 queryset = queryset.order_by(sort_by)
-                 try:
-                    queryset = queryset[:int(rows)]
-                 except (ValueError, TypeError):
-                    queryset = queryset[:10]
-            return queryset
+        form_to_display = None
+        if request.GET.get('admin_details') == 'true':
+            instance = Admin.objects.get(username=request.session["username"])
+            form_to_display = AdminSignupForm(instance=instance)
+        elif request.GET.get('action') == 'Update' and request.GET.get('id'):
+            instance = self.Model.objects.get(pk=request.GET.get('id'))
+            form_to_display = self.Form(instance=instance)
+        elif request.GET.get('action') == 'Delete':
+            self.Model.objects.filter(pk=self.request.GET.get('id')).delete()
+            context = self.get_context_data(form=form_to_display)
+            return render(request, self.template_name, context)
+        else:
+            form_to_display = self.Form()
 
 
-        if view_type == 'products':
-            fields = ["sku", "product_name", "category", "unit_price", "quantity_on_hand"]
-            queryset = sort_rows()
-            for item in queryset:
-                table_rows.append([item.sku, item.product_name, item.category.name, f"${item.unit_price}", item.quantity_on_hand])
-    
-        elif view_type == 'customers':
-            fields = ["customer_id", "username", "age", "gender", "employment_status", "occupation"]
-            queryset = sort_rows()
-            for item in queryset:
-             table_rows.append([item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation])
-            
-        elif view_type == 'inventory':
-            fields = ["order_id", "customer", "status"]
-            queryset = sort_rows()
-            for item in queryset:
-                table_rows.append([item.order_id, item.customer.username, item.status])
-            
-        elif view_type == 'categories':
-            fields = ["category_id", "name", "parent_category"]
-            queryset = sort_rows()
-            for item in queryset:
-             parent_name = item.parent_category.name if item.parent_category else "None"
-             table_rows.append([item.category_id, item.name, parent_name])
-
-        template_name = 'admin_panel/dashboard.html'
-        context = {
-            'type': view_type,
-            'queryset': queryset,
-            'page_title': page_title,
-            'fields': fields,
-            'form': form,
-            'table_rows': table_rows,
-            'sort_by': sort_by,
-            'rows': rows,
-            'username': username,
-            'user_role': user_role
-        }
-        
-        return render(request, template_name, context)
+        context = self.get_context_data(form=form_to_display)
+        if (self.request.GET.get('export') == 'csv'):
+            return self.export_to_csv(context)
+        return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
-        view_type = self.request.GET.get('type', 'products')
+        admin_update = self.request.GET.get('admin_details')
         action = self.request.GET.get('action')
+        form_template = f"admin_panel/dashboard&type={request.GET.get("type")}"
+        
+        form_instance = None
+        form_class = None
 
-        if action == 'update':
-            id = self.request.GET.get('id')
-            if view_type == 'products':
-                product = Product.objects.get(pk=id)
-                form = ProductForm(request.POST, instance=product)
-                if form.is_valid():
-                    product.sku = form.cleaned_data['sku']
-                    product.product_name = form.cleaned_data['product_name']
-                    product.category = form.cleaned_data['category']    
-                    product.unit_price = form.cleaned_data['unit_price']
-                    product.quantity_on_hand = form.cleaned_data['quantity_on_hand']
-                    product.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=products")
-                else:
-                    messages.error(request, "There were errors in the form. Please correct them.")
-            elif view_type == 'categories':
-                category = Category.objects.get(pk=id)
-                form = CategoryForm(request.POST, instance=category)
-                if form.is_valid():
-                    category.name = form.cleaned_data['name']
-                    category.parent_category = form.cleaned_data['parent_category']    
-                    category.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
-                else:
-                    messages.error(request, "There were errors in the form. Please correct them.")
-            elif view_type == 'customers':
-                customer = Customer.objects.get(pk=id)
-                form = CustomerForm(request.POST, instance=customer)    
-                if form.is_valid():
-                    customer.username = form.cleaned_data['username']
-                    customer.age = form.cleaned_data['age']
-                    customer.gender = form.cleaned_data['gender']    
-                    customer.employment_status = form.cleaned_data['employment_status']
-                    customer.occupation = form.cleaned_data['occupation']
-                    customer.education = form.cleaned_data['education']
-                    customer.household_size = form.cleaned_data['household_size']
-                    customer.has_children = form.cleaned_data['has_children']
-                    customer.monthly_income_sgd = form.cleaned_data['monthly_income_sgd']
-                    customer.preferred_category = form.cleaned_data['preferred_category']
-                    customer.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=customers")   
+        if admin_update == 'true':
+            try:
+                form_instance = Admin.objects.get(username=request.session["username"])
+                form_class = AdminSignupForm
+            except Admin.DoesNotExist:
+                context = self.get_context_data(error_message=["Admin user not found."])
+                return render(request, self.template_name, context)
+        
+        elif action == 'Update':
+            form_class = self.Form
+            try:
+                instance_id = self.request.GET.get('id')
+                form_instance = self.Model.objects.get(pk=instance_id)
+            except self.Model.DoesNotExist:
+                context = self.get_context_data(error_message=["Item to update not found."])
+                return render(request, self.template_name, context)
+
         else:
-             if view_type == 'products':
-                product = Product.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
-                form = ProductForm(request.POST, instance=product)
-                if form.is_valid():
-                    form.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=products")
-                else:
-                    messages.error(request, "There were errors in the form. Please correct them.")
-             elif view_type == 'categories':
-                category = Category.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
-                form = CategoryForm(request.POST, instance=category)
-                if form.is_valid():
-                    form.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=categories")
-             elif view_type == 'customers':
-                customer = Customer.objects.get(pk=kwargs.get('pk')) if kwargs.get('pk') else None
-                form = CustomerForm(request.POST, instance=customer)    
-                if form.is_valid():
-                    form.save()
-                    return redirect(f"{reverse_lazy('admin_dashboard')}?type=customers")
-                else:
-                    messages.error(request, "There were errors in the form. Please correct them.")
-        return redirect(f"{reverse_lazy('admin_dashboard')}")
-    
+            form_class = self.Form
 
+        form = form_class(request.POST, instance=form_instance)
 
+        if form.is_valid():
+            
+            form.save() 
+
+            if admin_update == 'true':
+                request.session['username'] = form.cleaned_data['username']
+                request.session['role'] = form.cleaned_data['role']
+
+            return redirect(f"{reverse_lazy('admin_dashboard')}?type={request.GET.get("type")}")
+        else:
+            context = self.get_context_data(form=form, error_message=error_check(form.errors.values()))
+            return render(request, self.template_name, context)

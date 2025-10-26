@@ -34,9 +34,11 @@
                 <i style="display: none;" id="togglePassword2"></i>
             </div>
 
-            {% if errors %}
+            {% if error_message %}
             <div class="error-list" style="color: red; font-size: small;">
-                <p class="error-message">{{ errors }}</p>
+                {% for error in error_message %}
+                <p class="error-message">{{ error }}</p>
+                {% endfor %}
             </div>
             {% endif %}
 
