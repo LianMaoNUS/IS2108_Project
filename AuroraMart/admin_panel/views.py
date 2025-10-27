@@ -76,7 +76,7 @@ class signupview(View):
                 new_admin.save()
                 return render(request, 'admin_panel/login', {"form": form})
         else:
-            return render(request,self.template_name,{"form": form, "error_message": error_check(error_check(form.errors.values()))})
+            return render(request,self.template_name,{"form": form, "error_message": error_check(form.errors.values())})
             
 
 class dashboardview(View):
