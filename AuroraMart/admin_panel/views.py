@@ -124,7 +124,6 @@ class dashboardview(View):
         )
         writer = csv.writer(response)
         queryset = self.config['model'].objects.all()
-        print(context)
         fields = self.config['fields']
         sort_by = self.request.GET.get('sort_by', fields[0]) 
 
@@ -189,19 +188,16 @@ class dashboardview(View):
             sales_trend = Order.objects.filter(
                 order_date__gte=thirty_days_ago, status='COMPLETED'
             ).annotate(
-                date=F('order_date__date') # Group by date
+                date=F('order_date__date') 
             ).values('date').annotate(
                 daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'),default=0)
             ).order_by('date')
 
-            # Prepare for Chart.js MAY REMOVE
             chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
             chart_data = [float(entry['daily_total']) for entry in sales_trend]
-            context['chart_labels'] = json.dumps(chart_labels or [])
+            context['chart_labels'] = json.dumps(chart_labels or [1,2,3])
             context['chart_data'] = json.dumps(chart_data or [])
-            print(chart_labels)
 
-            # --- Customers ---
             try:
                  new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
             except AttributeError: # If no date_joined field

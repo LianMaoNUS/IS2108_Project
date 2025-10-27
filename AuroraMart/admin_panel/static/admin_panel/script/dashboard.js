@@ -58,29 +58,34 @@
             console.log(dataValues);
             
             
-            new Chart(chart,{
+             new Chart(chart,{
                     type: 'line', 
                     data: {
                         labels: labels,
                         datasets: [{
                             label: 'Daily Sales ($)', 
                             data: dataValues,
-                            borderColor: 'rgb(75, 192, 192)', // Line color
-                            backgroundColor: 'rgba(75, 192, 192, 0.1)', // Optional fill color
-                            fill: true, // Enable fill color under the line
-                            tension: 0.1 // Makes the line slightly curved
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)', 
+                            fill: true, 
+                            tension: 0.1 
                         }]
                     },
                     options :{
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        },
-                        responsive: true,
-                        maintainAspectRatio: false
+                        responsive: true,             // MUST be true
+                        maintainAspectRatio: false,   // MUST be false
+                        scales: { y: { beginAtZero: true } },
+                    },
+                    plugins :{
+                        title:{
+                            display: true,
+                            text: 'gay',
+                            font: { size :16},
+                            padding: {top :10, bottom :10}
+                        }
                     }
             })
+
         }
 
     });
