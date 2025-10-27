@@ -167,7 +167,7 @@
             {% else %}
             <div class="dashboard-grid">
                 <div class="dashboard-section sales-performance">
-                    <h2>Sales Performance 💰</h2>
+                    <h2>Sales Performance 💰 (This month)</h2>
                     <div class="stat-cards">
                         <div class="stat-card">
                             <h3>Total Revenue (This Month)</h3>
@@ -180,10 +180,9 @@
                     </div>
                     
                     <div class="chart-container">
-                        <h3>Sales Trend (Last 30 Days)</h3>
+                        <canvas id="salesTrendChart"></canvas>
                         <a id="chart-labels" style="display: none;">{{chart_labels|default:'[]'|safe}}</a>
                         <a id="chart-data" style="display: none;">{{chart_data|default:'[]'|safe}}</a>
-                        <canvas id="salesTrendChart"></canvas>
                     </div>
                 </div>
 
