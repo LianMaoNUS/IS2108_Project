@@ -21,6 +21,9 @@ class Admin(User):
             self.password = make_password(self.password)
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.username
+
 class Category(models.Model):
     category_id = models.CharField(max_length=20, primary_key=True, unique=True)
     name = models.CharField(max_length=255, unique=True)
@@ -53,6 +56,9 @@ class Product(models.Model):
     reorder_quantity = models.PositiveIntegerField(default=10)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
 
+    def __str__(self):
+        return self.product_name
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
@@ -68,12 +74,15 @@ class Order(models.Model):
         if not self.order_id:
             self.order_id = "ORD-" + str(uuid.uuid4())
         return super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return self.order_id
 
 
 class OrderItem(models.Model):
     OrderItem_id = models.CharField(max_length=20, primary_key=True, unique=True)
     order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.PROTECT) # Protect product history
+    product = models.ForeignKey(Product, on_delete=models.CASCADE) # Protect product history
     quantity = models.PositiveIntegerField(default=1)
     # Store the price at the time of purchase to maintain historical accuracy.
     price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)

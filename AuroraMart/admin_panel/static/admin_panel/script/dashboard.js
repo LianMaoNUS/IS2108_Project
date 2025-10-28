@@ -52,10 +52,14 @@
         const chart = document.getElementById('salesTrendChart')?.getContext('2d');
         
         if (chart) {
-            const labels = document.getElementById('chart-labels').innerHTML
-            const dataValues = document.getElementById('chart-data').innerHTML
-            console.log(labels);
-            console.log(dataValues);
+            const labelsEl = document.getElementById('chart-labels')
+            const dataEl = document.getElementById('chart-data')
+            
+            const labelsJsonString = labelsEl.textContent || '[]';
+            const dataValuesJsonString = dataEl.textContent || '[]';
+
+            const labels = JSON.parse(labelsJsonString);
+            const dataValues = JSON.parse(dataValuesJsonString);
             
             
              new Chart(chart,{
