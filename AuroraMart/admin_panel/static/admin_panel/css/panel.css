@@ -68,7 +68,7 @@ a {
     height: 50px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #6c63ff; /* Border color from login active state */
+    border: 2px solid #6c63ff; 
 }
 
 .profile-info .admin-name {
@@ -79,7 +79,7 @@ a {
 
 .profile-info .admin-role {
     font-size: 0.85rem;
-    color: #6c63ff; /* Role color from wireframe */
+    color: #6c63ff; 
     margin: 0;
 }
 
@@ -140,7 +140,7 @@ a {
 
 .logout-link {
     text-decoration: none;
-    color: #ff4d4f; /* Red for logout */
+    color: #ff4d4f;
     font-weight: 600;
     font-size: 1rem;
     transition: color 0.2s;
@@ -154,25 +154,24 @@ a {
 .main-content {
     flex-grow: 1;
     padding: 2rem 3rem;
-    background-color: #d6e2f6; /* Same as body for continuity */
+    background-color: #d6e2f6; 
     min-width: 0;
 }
 
 .dashboard-grid {
     display: grid;
-    /* Explicitly create two equal columns */
     grid-template-columns: 1fr 1fr; 
-    gap: 20px; /* Space between sections */
-    padding: 20px 0; /* Add some padding */
+    gap: 20px;
+    padding: 20px 0; 
 }
 
 .dashboard-section.sales-performance,
 .dashboard-section.order-status {
-    grid-column: span 2; /* Make this section take up 2 columns */
+    grid-column: span 2; 
 }
 
 .dashboard-section {
-    background-color: #ffffff; /* White background for sections */
+    background-color: #ffffff; 
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -188,7 +187,7 @@ a {
 
 .stat-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Responsive stat cards */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
     gap: 15px;
     margin-bottom: 20px;
 }
@@ -225,7 +224,7 @@ a {
 
 .chart-container h4 {
     margin-top: 0;
-   margin-bottom: 0; /* Add some space below if needed */
+   margin-bottom: 0; 
 }
 
 .list-container {
@@ -403,7 +402,6 @@ a {
     border-bottom: none;
 }
 
-/* Action Buttons within table */
 .action-btn {
     border: none;
     border-radius: 5px;
@@ -425,27 +423,23 @@ a {
 }
 
 .delete-btn {
-    background-color: #eb6d6d; /* Muted red */
+    background-color: #eb6d6d; 
     color: white;
 }
 
-/* The semi-transparent background overlay */
 .modal-overlay {
     display: hidden; 
-    position: fixed; /* Stays in place even if you scroll */
+    position: fixed; 
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Black with 60% opacity */
-    z-index: 1000; /* Sits on top of everything else */
-    
-    /* Use flexbox to center the modal content */
+    background-color: rgba(0, 0, 0, 0.6); 
+    z-index: 1000; 
     justify-content: center;
     align-items: center;
 }
 
-/* The white content box of the modal */
 .modal-content {
     background-color: #fff;
     padding: 2rem;
@@ -472,7 +466,6 @@ a {
     margin: 0;
 }
 
-/* The 'X' button to close the modal */
 .close-button {
     color: #aaa;
     font-size: 28px;
@@ -511,12 +504,10 @@ a {
     margin-top: 2rem;
 }
 
-/* Container for each label-input pair */
 .form-group {
     margin-bottom: 1.5rem;
 }
 
-/* Style for the <label> tags */
 .form-group label {
     display: block;
     font-weight: 600;
@@ -524,7 +515,6 @@ a {
     margin-bottom: 0.5rem;
 }
 
-/* General styles for all text inputs, selects, and textareas */
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group input[type="password"],
@@ -537,11 +527,10 @@ a {
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 8px;
-    box-sizing: border-box; /* Important */
+    box-sizing: border-box; 
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-/* Style for when a user clicks into a form field */
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -550,7 +539,6 @@ a {
     box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
 }
 
-/* Style for displaying validation errors */
 .error-list {
     color: #d93025;
     font-size: 0.875rem;
@@ -559,7 +547,6 @@ a {
     margin-top: 0.5rem;
 }
 
-/* Style for the submit button */
 .submit-btn {
     width: 100%;
     padding: 12px;
@@ -576,4 +563,24 @@ a {
 
 .submit-btn:hover {
     background-color: #5a52d8;
+}
+
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #888; 
+  border-radius: 8px;
+  border: 4px solid #f0f0f0; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
 }

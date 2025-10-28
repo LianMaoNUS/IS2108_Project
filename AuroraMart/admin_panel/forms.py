@@ -1,7 +1,7 @@
 import re
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
-from admin_panel.models import Admin,Category,Product,Order
+from admin_panel.models import Admin,Category,Product,Order,OrderItem
 from customer_website.models import Customer
 from AuroraMart.models import User
 
@@ -105,4 +105,9 @@ class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
         fields = ['name','parent_category']
+
+class OrderItemForm(forms.ModelForm):
+    class Meta:
+        model = OrderItem
+        fields = ['order_id','product','quantity','price_at_purchase']
 
