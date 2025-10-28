@@ -73,8 +73,9 @@ class Order(models.Model):
 class OrderItem(models.Model):
     OrderItem_id = models.CharField(max_length=20, primary_key=True, unique=True)
     order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT) # Protect product history
     quantity = models.PositiveIntegerField(default=1)
+    # Store the price at the time of purchase to maintain historical accuracy.
     price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
 
     def save(self,*args, **kwargs):
