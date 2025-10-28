@@ -11,7 +11,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.views import LoginView
 from django.views import View
 from django.contrib import messages
-from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
+from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm,OrderItemForm
 from AuroraMart.models import User
 from customer_website.models import Customer
 from admin_panel.models import Admin,Order,Category,Product,OrderItem
@@ -105,6 +105,11 @@ class dashboardview(View):
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
             'fields': ["category_id", "name", "parent_category"],
             'rows': lambda item: [item.category_id, item.name, item.parent_category.name if item.parent_category else "None"]
+        },
+        'orderitem': {
+            'model': OrderItem, 'form': OrderItemForm, 'title': 'Order Items',
+            'fields': ["OrderItem_id", "order_id", "product"," quantity","price_at_purchase"],
+            'rows': lambda item: [item.OrderItem_id, item.order_id.order_id, item.product.product_name, item.quantity,item.price_at_purchase]
         }
     }
 
@@ -195,7 +200,7 @@ class dashboardview(View):
 
             chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
             chart_data = [float(entry['daily_total']) for entry in sales_trend]
-            context['chart_labels'] = json.dumps(chart_labels or [1,2,3])
+            context['chart_labels'] = json.dumps(chart_labels or [])
             context['chart_data'] = json.dumps(chart_data or [])
 
             try:
