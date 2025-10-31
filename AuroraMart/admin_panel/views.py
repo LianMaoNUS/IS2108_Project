@@ -248,6 +248,9 @@ class dashboardview(View):
             if request.GET.get('admin_details') == 'true':
                 instance = Admin.objects.get(username=request.session["username"])
                 form_to_display = AdminSignupForm(instance=instance)
+                context = self.get_context_data(form=form_to_display)
+                context['admin_details'] = 'true'
+                return render(request, self.template_name, context)
             elif request.GET.get('action') == 'Update' and request.GET.get('id'):
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
@@ -265,8 +268,15 @@ class dashboardview(View):
             return render(request, self.template_name, context)
             
         else:
-            context = self.get_context_data()
-            return render(request, self.template_name, context)
+            if request.GET.get('admin_details') == 'true':
+                instance = Admin.objects.get(username=request.session["username"])
+                form_to_display = AdminSignupForm(instance=instance)
+                context = self.get_context_data(form=form_to_display)
+                context['admin_details'] = 'true'
+                return render(request, self.template_name, context)
+            else:
+                context = self.get_context_data()
+                return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
         admin_update = self.request.GET.get('admin_details')

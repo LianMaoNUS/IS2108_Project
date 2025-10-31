@@ -45,7 +45,7 @@ class Category(models.Model):
         # Ensures plural form is "Categories" in the admin panel
         verbose_name_plural = "Categories"
 
-
+#img
 class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True,primary_key=True)
     product_name = models.CharField(max_length=255)
