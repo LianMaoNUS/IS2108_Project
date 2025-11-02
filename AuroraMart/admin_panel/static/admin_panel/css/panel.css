@@ -596,3 +596,52 @@ a {
 :has(.row-checkbox:checked) .bulk-actions {
   display: inline-flex; 
 }
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+}
+
+.pagination-info {
+    color: #666;
+    font-size: 14px;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.pagination-btn {
+    padding: 8px 16px;
+    background: #6c63ff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: background 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-btn:hover {
+    background: #8580ec;
+}
+
+.pagination-btn.disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.pagination-current {
+    padding: 8px 16px;
+    font-weight: bold;
+    color: #333;
+}
