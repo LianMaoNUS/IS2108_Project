@@ -4,6 +4,11 @@
         window.history.replaceState({}, '', newUrl);
     }
     
+    function toggleAll(source) {      
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(cb => cb.checked = source.checked);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         modal = document.getElementById('form-modal');
         closeButton = document.querySelector('.close-button');
@@ -29,6 +34,8 @@
 
         sortBySelect = document.getElementById('sort-by-select');
         rowsPerPageSelect = document.getElementById('rows-per-page-select');
+        deleteSelectedBtn = document.getElementById('delete-selected');
+        exportCsvBtn = document.getElementById('export-csv');
 
         function updateUrlAndRefresh() {
             url = new URL(window.location.href);
@@ -42,12 +49,39 @@
             window.location.href = url.toString();
         }
         
+        function confirmBulkDelete() {
+            url = new URL(window.location.href);
+            alertMessage = "Are you sure you want to delete the selected items? This action cannot be undone.";
+            if (confirm(alertMessage)) {
+                id_list = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+                url.searchParams.set('id', id_list.join(','));
+                url.searchParams.set('action', 'Delete');
+                window.location.href = url.toString();
+            }
+        }
+
+        function exportToCsv(event) {
+            event.preventDefault(); 
+            url = new URL(exportCsvBtn.href);
+            id_list = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+            url.searchParams.set('id', id_list.join(','));
+            window.location.href = url.toString();
+        }
+
         if (sortBySelect) {
             sortBySelect.addEventListener('change', updateUrlAndRefresh);
         }
         if (rowsPerPageSelect) {
             rowsPerPageSelect.addEventListener('change', updateUrlAndRefresh);
         }
+
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.addEventListener('click', confirmBulkDelete);
+        }
+
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', exportToCsv);
+        }   
 
         const chart = document.getElementById('salesTrendChart')?.getContext('2d');
         
