@@ -94,17 +94,16 @@
                 <div class="action-buttons">
                     {% if user_role == "EDITOR" %}
                     <button class="buttons add-new-btn">
-                        <a href="{% url 'admin_dashboard' %}?type={{type}}&modal=show&action=Add">Add new <i
+                        <a href="{% url 'admin_dashboard' %}?type={{type}}&modal=show&action=Add">Add <i
                                 class="fa-solid fa-plus"></i></a>
                     </button>
                     <button class=" buttons delete-btn bulk-actions" name="action" value="DeleteMultiple" type="submit">
-                        <a id="delete-selected" href="#">Delete Selected <i class="fa-solid fa-trash"></i></a>
+                        <a id="delete-selected" href="#">Delete <i class="fa-solid fa-trash"></i></a>
                     </button>
                     {% endif %}
                     {% if table_rows %}
                     <button class="buttons export-btn bulk-actions">
-                        <a id="export-csv" href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&export=csv">Export
-                            to CSV <i class="fa-solid fa-file-export"></i></a>
+                        <a id="export-csv" href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&export=csv">Export <i class="fa-solid fa-file-export"></i></a>
                     </button>
                     <label for="sort-select">Sort by:</label>
                     <select id="sort-by-select" class="sort-select">
@@ -179,6 +178,48 @@
                     {% endif %}
 
                 </div>
+                                    <div class="pagination-controls">
+                        <div class="pagination-info">
+                            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} entries
+                        </div>
+                        <div class="pagination-buttons">
+                            {% if has_previous %}
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page=1" class="pagination-btn">
+                                <i class="fa-solid fa-angles-left"></i> First
+                            </a>
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{previous_page}}" class="pagination-btn">
+                                <i class="fa-solid fa-angle-left"></i> Previous
+                            </a>
+                            {% else %}
+                            <span class="pagination-btn disabled">
+                                <i class="fa-solid fa-angles-left"></i> First
+                            </span>
+                            <span class="pagination-btn disabled">
+                                <i class="fa-solid fa-angle-left"></i> Previous
+                            </span>
+                            {% endif %}
+
+                            <span class="pagination-current">
+                                Page {{ current_page }} of {{ total_pages }}
+                            </span>
+
+                            {% if has_next %}
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{next_page}}" class="pagination-btn">
+                                Next <i class="fa-solid fa-angle-right"></i>
+                            </a>
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{total_pages}}" class="pagination-btn">
+                                Last <i class="fa-solid fa-angles-right"></i>
+                            </a>
+                            {% else %}
+                            <span class="pagination-btn disabled">
+                                Next <i class="fa-solid fa-angle-right"></i>
+                            </span>
+                            <span class="pagination-btn disabled">
+                                Last <i class="fa-solid fa-angles-right"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>  
             </div>
             {% else %}
             <div class="dashboard-grid">
