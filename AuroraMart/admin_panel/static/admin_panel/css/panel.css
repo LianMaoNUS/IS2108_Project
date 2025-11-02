@@ -280,10 +280,7 @@ a {
     gap: 15px;
     align-items: center;
 }
-
-.add-new-btn {
-    background-color: #6c63ff;
-    color: white;
+.buttons {
     border: none;
     border-radius: 8px;
     padding: 10px 18px;
@@ -296,19 +293,14 @@ a {
     transition: background-color 0.2s;
 }
 
+.add-new-btn {
+    background-color: #6c63ff;
+    color: white;
+}
+
 .export-btn {
     background-color: #28a745;
     color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background-color 0.2s;
 }
 
 .export-btn:hover {
@@ -595,4 +587,12 @@ a {
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: #555;
+}
+
+.bulk-actions {
+  display: none;
+}
+
+:has(.row-checkbox:checked) .bulk-actions {
+  display: inline-flex; 
 }

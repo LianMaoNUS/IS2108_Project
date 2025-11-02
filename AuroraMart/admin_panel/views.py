@@ -1,16 +1,13 @@
 import re
 import csv
 import datetime
-import datetime
 import json
 from django.utils import timezone
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.hashers import check_password
 from django.urls import reverse_lazy
-from django.contrib.auth.views import LoginView
 from django.views import View
-from django.contrib import messages
 from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm,OrderItemForm
 from AuroraMart.models import User
 from customer_website.models import Customer
@@ -37,7 +34,6 @@ class loginview(View):
         form = self.form_class(request.POST)
         error_message = []
         if form.is_valid():
-            print( "form is valid")
             username=form.cleaned_data['username']
             password=form.cleaned_data['password']
             try:
@@ -120,7 +116,7 @@ class dashboardview(View):
             return redirect('admin_dashboard')
         return super().dispatch(request, *args, **kwargs)
     
-    def export_to_csv(self,context):
+    def export_to_csv(self, context):
         response = HttpResponse(
             content_type='text/csv',
             headers={
@@ -129,19 +125,25 @@ class dashboardview(View):
         )
         writer = csv.writer(response)
         queryset = self.config['model'].objects.all()
-        fields = self.config['fields']
-        sort_by = self.request.GET.get('sort_by', fields[0]) 
 
+        ids_param = self.request.GET.get('id') or ''
+        ids_param = ids_param.replace('%2C', ',').replace('%2c', ',')
+        ids = [i for i in ids_param.split(',') if i]
+        if ids:
+            queryset = queryset.filter(pk__in=ids)
+
+        fields = self.config['fields']
+        sort_by = self.request.GET.get('sort_by', fields[0])
         if sort_by in fields:
             queryset = queryset.order_by(sort_by)
-        
+
         writer.writerow(fields)
         row_builder = self.config['rows']
         for item in queryset:
             row_data = row_builder(item)
             processed_row = [cell if cell not in [None, ""] else "None" for cell in row_data]
             writer.writerow(processed_row)
-            
+
         return response
     
     def get_context_data(self, **kwargs):
@@ -205,8 +207,8 @@ class dashboardview(View):
 
             try:
                  new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
-            except AttributeError: # If no date_joined field
-                 new_customers_month = "N/A" # Or query differently if you have another creation field
+            except AttributeError: 
+                 new_customers_month = "N/A" 
 
             context['new_customers_month'] = new_customers_month
             context['total_customers'] = Customer.objects.count()
@@ -255,7 +257,11 @@ class dashboardview(View):
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
             elif request.GET.get('action') == 'Delete':
-                model.objects.filter(pk=self.request.GET.get('id')).delete()
+                ids_param = request.GET.get('id') or ''
+                ids_param = ids_param.replace('%2C', ',').replace('%2c', ',')
+                ids = [i for i in ids_param.split(',') if i]
+                if ids:
+                    model.objects.filter(pk__in=ids).delete()
                 context = self.get_context_data(form=form_to_display)
                 return render(request, self.template_name, context)
             else:
@@ -281,7 +287,6 @@ class dashboardview(View):
     def post(self, request, *args, **kwargs):
         admin_update = self.request.GET.get('admin_details')
         action = self.request.GET.get('action')
-        form_template = f"admin_panel/dashboard&type={request.GET.get("type")}"
         model = self.config['model']
         
         form_instance = None
