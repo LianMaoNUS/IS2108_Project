@@ -1,28 +1,36 @@
-import re
 import csv
 import datetime
-import datetime
 import json
+
 from django.utils import timezone
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.hashers import check_password
-from django.urls import reverse_lazy
-from django.contrib.auth.views import LoginView
+from django.urls import reverse
 from django.views import View
-from django.contrib import messages
-from .forms import AdminLoginForm, AdminSignupForm, ProductForm,CustomerForm,OrderForm,CategoryForm
-from AuroraMart.models import User
+from django.db.models import Sum, F
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
+from .forms import AdminLoginForm, AdminSignupForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
+from AuroraMart.models import User 
 from customer_website.models import Customer
-from admin_panel.models import Admin,Order,Category,Product,OrderItem
-from django.db.models import Sum, Count, Avg,F
+from admin_panel.models import Admin, Order, Category, Product, OrderItem
 
 def error_check(check):
-    errors =[]
-    for error_list in check:
-            for error_message in error_list:
-                errors.append(error_message)
-    return errors
+    return [msg for err_list in check for msg in err_list]
+
+def record_selector(request, model, type):
+    ids_param = request.GET.get('id', '')
+    ids_param = ids_param.replace('%2C', ',').replace('%2c', ',')
+    ids = [i for i in ids_param.split(',') if i]
+    
+    if ids:
+        queryset = model.objects.filter(pk__in=ids)
+        if type == 'delete':
+            return queryset.delete()
+        elif type == 'filter':
+            return queryset
+    return None
 
 
 class loginview(View):
@@ -35,49 +43,43 @@ class loginview(View):
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
-        error_message = []
         if form.is_valid():
-            print( "form is valid")
-            username=form.cleaned_data['username']
-            password=form.cleaned_data['password']
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
             try:
                 admin = Admin.objects.get(username=username)
                 if check_password(password, admin.password):
                     request.session['hasLogin'] = True
                     request.session['username'] = username
                     request.session['role'] = admin.role
+                    request.session['profile_picture'] = admin.profile_picture
                     return redirect('admin_dashboard')
                 else:
-                    error_message.append("Incorrect password")
-                
+                    form.add_error(None, "Incorrect password")
             except Admin.DoesNotExist:
-                error_message.append("User not found")
-        return render(request, self.template_name, {"form": form,"error_message": error_message})
+                form.add_error(None, "User not found")
+    
+        return render(request, self.template_name, {"form": form})
 
 class signupview(View):
     form_class = AdminSignupForm
     template_name = 'admin_panel/signup.html'
     
     def get(self, request, *args, **kwargs):
-        pk = kwargs.get('pk') 
-        admins = Admin.objects.get(pk=pk) if pk else None
-        form = self.form_class(instance=admins)
+        form = self.form_class()
         return render(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
         
         if form.is_valid():
-                new_admin = Admin(
-                    username=form.cleaned_data['username'],
-                    password=form.cleaned_data['password'],
-                    role=form.cleaned_data['role']
-                )
-                new_admin.save()
-                return render(request, 'admin_panel/login', {"form": form})
+            form.save() 
+            return redirect('admin_login')
         else:
-            return render(request,self.template_name,{"form": form, "error_message": error_check(error_check(form.errors.values()))})
-            
+            return render(request, self.template_name, {
+                "form": form, 
+                "error_message": error_check(form.errors.values())
+            })
 
 class dashboardview(View):
     template_name = 'admin_panel/dashboard.html'
@@ -103,8 +105,13 @@ class dashboardview(View):
         },
         'categories': {
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
-            'fields': ["category_id", "name", "parent_category"],
-            'rows': lambda item: [item.category_id, item.name, item.parent_category.name if item.parent_category else "None"]
+            'fields': ["category_id", "name", "is_subcategory"],
+            'rows': lambda item: [item.category_id, item.name, item.is_subcategory]
+        },
+        'orderitem': {
+            'model': OrderItem, 'form': OrderItemForm, 'title': 'Order Items',
+            'fields': ["OrderItem_id", "order_id", "product"," quantity","price_at_purchase"],
+            'rows': lambda item: [item.OrderItem_id, item.order_id.order_id, item.product.product_name, item.quantity,item.price_at_purchase]
         }
     }
 
@@ -114,8 +121,135 @@ class dashboardview(View):
         if not self.config:
             return redirect('admin_dashboard')
         return super().dispatch(request, *args, **kwargs)
-    
-    def export_to_csv(self,context):
+
+    def _get_queryset(self):
+        model = self.config['model']
+        queryset = record_selector(self.request, model, 'filter')
+        if queryset is None:
+            queryset = model.objects.all()
+
+        fields = self.config['fields']
+        sort_by = self.request.GET.get('sort_by', fields[0] if fields else None)
+        
+        if sort_by and sort_by in fields:
+            queryset = queryset.order_by(sort_by)
+        return queryset
+
+    def _get_dashboard_stats(self):
+        context = {}
+        now = timezone.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        thirty_days_ago = now - datetime.timedelta(days=30)
+        orders_this_month = Order.objects.filter(
+            order_date__gte=start_of_month, status='COMPLETED'
+        ).annotate(
+            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
+        )
+        total_revenue_month = orders_this_month.aggregate(total=Sum('total_value'))['total'] or 0
+        num_orders_month = orders_this_month.count()
+        average_order_value = total_revenue_month / num_orders_month if num_orders_month > 0 else 0
+
+        context['total_revenue_month'] = total_revenue_month
+        context['average_order_value'] = average_order_value
+
+        sales_trend = Order.objects.filter(
+            order_date__gte=thirty_days_ago, status='COMPLETED'
+        ).annotate(
+            date=F('order_date__date')
+        ).values('date').annotate(
+            daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'), default=0)
+        ).order_by('date')
+
+        chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
+        chart_data = [float(entry['daily_total']) for entry in sales_trend]
+        context['chart_labels'] = json.dumps(chart_labels or [])
+        context['chart_data'] = json.dumps(chart_data or [])
+
+        try:
+            new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
+        except AttributeError: 
+            new_customers_month = "N/A"  
+        context['new_customers_month'] = new_customers_month
+        context['total_customers'] = Customer.objects.count()
+
+        low_stock_count = Product.objects.filter(quantity_on_hand__lt=F('reorder_quantity')).count()
+        context['low_stock_count'] = low_stock_count
+
+        top_products = OrderItem.objects.filter(
+            order_id__order_date__gte=start_of_month, order_id__status='COMPLETED'
+        ).values('product__product_name').annotate(
+            units_sold=Sum('quantity')
+        ).order_by('-units_sold')[:5]
+        context['top_selling_products'] = list(top_products)
+
+        pending_orders_count = Order.objects.filter(status='PENDING').count()
+        context['pending_orders_count'] = pending_orders_count
+        
+        context['recent_orders'] = Order.objects.annotate(
+            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
+        ).order_by('-order_date')[:5]
+
+        return context
+
+    def _get_list_view_context(self):
+        context = {}
+        queryset = self._get_queryset()
+        
+        fields = self.config['fields']
+        rows = self.request.GET.get('rows', '10')
+        page_number = self.request.GET.get('page', 1)
+
+        paginator = Paginator(queryset, int(rows) if rows.isdigit() else 10)
+
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+            page_number = 1
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+            page_number = paginator.num_pages
+
+        table_rows = [self.config['rows'](item) for item in page_obj]
+
+        context.update({
+            'fields': fields,
+            'table_rows': table_rows,
+            'sort_by': self.request.GET.get('sort_by', fields[0] if fields else None),
+            'rows': rows,
+            'page_obj': page_obj,
+            'paginator': paginator,
+            'current_page': int(page_number),
+            'total_pages': paginator.num_pages,
+            'has_previous': page_obj.has_previous(),
+            'has_next': page_obj.has_next(),
+            'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else None
+        })
+        return context
+
+    def _get_context_data(self, **kwargs):
+        """Builds the context dictionary for the template."""
+        context = {
+            'type': self.view_type,
+            'page_title': self.config['title'],
+            'username': self.request.session.get("username"),
+            'user_role': self.request.session.get("role"),
+            'profile_picture': self.request.session.get("profile_picture"),
+            'admin_details': self.request.GET.get('admin_details') == 'true'
+        }
+
+        if self.view_type == 'dashboard':
+            stats_context = self._get_dashboard_stats()
+            context.update(stats_context)
+        else:
+            list_context = self._get_list_view_context()
+            context.update(list_context)
+        
+        context.update(kwargs)
+        return context
+
+    def _export_to_csv(self):
         response = HttpResponse(
             content_type='text/csv',
             headers={
@@ -123,161 +257,83 @@ class dashboardview(View):
             },
         )
         writer = csv.writer(response)
-        queryset = self.config['model'].objects.all()
+        queryset = self._get_queryset()
         fields = self.config['fields']
-        sort_by = self.request.GET.get('sort_by', fields[0]) 
-
-        if sort_by in fields:
-            queryset = queryset.order_by(sort_by)
         
         writer.writerow(fields)
         row_builder = self.config['rows']
+        
         for item in queryset:
             row_data = row_builder(item)
             processed_row = [cell if cell not in [None, ""] else "None" for cell in row_data]
             writer.writerow(processed_row)
-            
+
         return response
     
-    def get_context_data(self, **kwargs):
-        context = {
-            'type': self.view_type,
-            'page_title': self.config['title'],
-            'username': self.request.session.get("username"),
-            'user_role': self.request.session.get("role"),
-            'admin_details': self.request.GET.get('admin_details') == 'true' 
-        }
+    def _handle_admin_details_get(self):
+        try:
+            instance = Admin.objects.get(username=self.request.session["username"])
+            form = AdminSignupForm(instance=instance)
+            context = self._get_context_data(form=form, admin_details=True)
+            return render(self.request, self.template_name, context)
+        except Admin.DoesNotExist:
+            context = self._get_context_data(error_message=["Admin user not found."])
+            return render(self.request, self.template_name, context)
 
-        if self.view_type != 'dashboard':
-            queryset = self.config['model'].objects.all()
-            fields = self.config['fields']
-            sort_by = self.request.GET.get('sort_by', fields[0] if fields else None)
-            rows = self.request.GET.get('rows', '10')
-
-            if sort_by and sort_by in fields:
-                queryset = queryset.order_by(sort_by)
-
-            try:
-                queryset = queryset[:int(rows)]
-            except (ValueError, TypeError):
-                queryset = queryset[:10]
-
-            table_rows = [self.config['rows'](item) for item in queryset]
-
-            context.update({
-                'fields': fields,
-                'table_rows': table_rows,
-                'sort_by': sort_by,
-                'rows': rows,
-            })
-        else:
-            now = timezone.now()
-            start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            thirty_days_ago = now - datetime.timedelta(days=30)
-
-            orders_this_month = Order.objects.filter(order_date__gte=start_of_month, status='COMPLETED').annotate(
-                total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
-            )
-            total_revenue_month = orders_this_month.aggregate(total=Sum('total_value'))['total'] or 0
-            num_orders_month = orders_this_month.count()
-            average_order_value = total_revenue_month / num_orders_month if num_orders_month > 0 else 0
-
-            context['total_revenue_month'] = total_revenue_month
-            context['average_order_value'] = average_order_value
-
-            sales_trend = Order.objects.filter(
-                order_date__gte=thirty_days_ago, status='COMPLETED'
-            ).annotate(
-                date=F('order_date__date') 
-            ).values('date').annotate(
-                daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'),default=0)
-            ).order_by('date')
-
-            chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
-            chart_data = [float(entry['daily_total']) for entry in sales_trend]
-            context['chart_labels'] = json.dumps(chart_labels or [1,2,3])
-            context['chart_data'] = json.dumps(chart_data or [])
-
-            try:
-                 new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
-            except AttributeError: # If no date_joined field
-                 new_customers_month = "N/A" # Or query differently if you have another creation field
-
-            context['new_customers_month'] = new_customers_month
-            context['total_customers'] = Customer.objects.count()
-
-            # --- Products & Inventory ---
-            low_stock_count = Product.objects.filter(quantity_on_hand__lt=F('reorder_quantity')).count()
-            context['low_stock_count'] = low_stock_count
-
-            # Top selling products (requires OrderItem model)
-            top_products = OrderItem.objects.filter(
-                order_id__order_date__gte=start_of_month, order_id__status='COMPLETED'
-            ).values('product__product_name').annotate(
-                units_sold=Sum('quantity')
-            ).order_by('-units_sold')[:5]
-
-            context['top_selling_products'] = [{'name': p['product__product_name'], 'units_sold': p['units_sold']} for p in top_products]
-
-            # --- Orders ---
-            pending_orders_count = Order.objects.filter(status='PENDING').count()
-            context['pending_orders_count'] = pending_orders_count
-
-            recent_orders = Order.objects.annotate(
-                 total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
-            ).order_by('-order_date')[:5] 
-            context['recent_orders'] = recent_orders
-
-        context.update(kwargs)
-        return context
-    
     def get(self, request, *args, **kwargs):
-        if (self.request.GET.get('logout') == 'true'):
+        # 1. Handle Logout
+        if self.request.GET.get('logout') == 'true':
             request.session.flush()
             return redirect('admin_login')
         
-        if self.view_type != 'dashboard':
-            form_to_display = None
-            form = self.config['form']
-            model = self.config['model']
-            if request.GET.get('admin_details') == 'true':
-                instance = Admin.objects.get(username=request.session["username"])
-                form_to_display = AdminSignupForm(instance=instance)
-            elif request.GET.get('action') == 'Update' and request.GET.get('id'):
+        # 2. Handle Admin Details request (same logic for all pages)
+        if self.request.GET.get('admin_details') == 'true':
+            return self._handle_admin_details_get()
+        
+        # 3. Handle CSV Export
+        if self.request.GET.get('export') == 'csv' and self.view_type != 'dashboard':
+            return self._export_to_csv()
+
+        # 4. Handle Dashboard View
+        if self.view_type == 'dashboard':
+            context = self._get_context_data()
+            return render(request, self.template_name, context)
+
+        # 5. Handle List Views (Products, Orders, etc.)
+        form_to_display = None
+        model = self.config['model']
+        form = self.config['form']
+        action = request.GET.get('action')
+        
+        if action == 'Update' and request.GET.get('id'):
+            try:
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
-            elif request.GET.get('action') == 'Delete':
-                model.objects.filter(pk=self.request.GET.get('id')).delete()
-                context = self.get_context_data(form=form_to_display)
-                return render(request, self.template_name, context)
-            else:
-                form_to_display = form
-
-            context = self.get_context_data(form=form_to_display)
-
-            if (self.request.GET.get('export') == 'csv'):
-                return self.export_to_csv(context)
-            return render(request, self.template_name, context)
-            
+            except model.DoesNotExist:
+                pass 
+        elif action == 'Delete':
+            record_selector(request, model, 'delete')
+            return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
         else:
-            context = self.get_context_data()
-            return render(request, self.template_name, context)
+            form_to_display = form
+
+        context = self._get_context_data(form=form_to_display)
+        return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
-        admin_update = self.request.GET.get('admin_details')
+        admin_update = self.request.GET.get('admin_details') == 'true'
         action = self.request.GET.get('action')
-        form_template = f"admin_panel/dashboard&type={request.GET.get("type")}"
         model = self.config['model']
         
         form_instance = None
         form_class = None
 
-        if admin_update == 'true':
+        if admin_update:
             try:
                 form_instance = Admin.objects.get(username=request.session["username"])
                 form_class = AdminSignupForm
             except Admin.DoesNotExist:
-                context = self.get_context_data(error_message=["Admin user not found."])
+                context = self._get_context_data(error_message=["Admin user not found."])
                 return render(request, self.template_name, context)
         
         elif action == 'Update':
@@ -286,23 +342,26 @@ class dashboardview(View):
                 instance_id = self.request.GET.get('id')
                 form_instance = model.objects.get(pk=instance_id)
             except model.DoesNotExist:
-                context = self.get_context_data(error_message=["Item to update not found."])
+                context = self._get_context_data(error_message=["Item to update not found."])
                 return render(request, self.template_name, context)
-
         else:
+
             form_class = self.config['form']
 
         form = form_class(request.POST, instance=form_instance)
 
         if form.is_valid():
-            
             form.save() 
-
-            if admin_update == 'true':
+            
+            if admin_update:
                 request.session['username'] = form.cleaned_data['username']
                 request.session['role'] = form.cleaned_data['role']
 
-            return redirect(f"{reverse_lazy('admin_dashboard')}?type={request.GET.get("type")}")
+            return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
         else:
-            context = self.get_context_data(form=form, error_message=error_check(form.errors.values()))
+            context = self._get_context_data(
+                form=form, 
+                error_message=error_check(form.errors.values()),
+                admin_details=admin_update 
+            )
             return render(request, self.template_name, context)
