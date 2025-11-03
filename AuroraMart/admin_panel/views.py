@@ -52,6 +52,7 @@ class loginview(View):
                     request.session['hasLogin'] = True
                     request.session['username'] = username
                     request.session['role'] = admin.role
+                    request.session['profile_picture'] = admin.profile_picture
                     return redirect('admin_dashboard')
                 else:
                     form.add_error(None, "Incorrect password")
@@ -104,8 +105,8 @@ class dashboardview(View):
         },
         'categories': {
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
-            'fields': ["category_id", "name", "parent_category"],
-            'rows': lambda item: [item.category_id, item.name, item.parent_category.name if item.parent_category else "None"]
+            'fields': ["category_id", "name", "is_subcategory"],
+            'rows': lambda item: [item.category_id, item.name, item.is_subcategory]
         },
         'orderitem': {
             'model': OrderItem, 'form': OrderItemForm, 'title': 'Order Items',
@@ -234,7 +235,7 @@ class dashboardview(View):
             'page_title': self.config['title'],
             'username': self.request.session.get("username"),
             'user_role': self.request.session.get("role"),
-            # Ensure 'admin_details' from GET param is in context
+            'profile_picture': self.request.session.get("profile_picture"),
             'admin_details': self.request.GET.get('admin_details') == 'true'
         }
 
@@ -273,10 +274,10 @@ class dashboardview(View):
         try:
             instance = Admin.objects.get(username=self.request.session["username"])
             form = AdminSignupForm(instance=instance)
-            context = self.get_context_data(form=form, admin_details=True)
+            context = self._get_context_data(form=form, admin_details=True)
             return render(self.request, self.template_name, context)
         except Admin.DoesNotExist:
-            context = self.get_context_data(error_message=["Admin user not found."])
+            context = self._get_context_data(error_message=["Admin user not found."])
             return render(self.request, self.template_name, context)
 
     def get(self, request, *args, **kwargs):
