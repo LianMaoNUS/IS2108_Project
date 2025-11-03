@@ -1,0 +1,72 @@
+<!-- customer_website/templates/customer_website/cart.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shopping Cart - AuroraMart</title>
+    <style>
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .cart-item { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        .cart-summary { background: #f8f9fa; padding: 1rem; border-radius: 8px; }
+        .quantity-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <nav style="background: #f8f9fa; padding: 1rem;">
+        <a href="{% url 'main_page' %}">Home</a> |
+        <a href="{% url 'all_products' %}">Products</a> |
+        <a href="{% url 'cart' %}">Cart ({{ cart_items|length }})</a>
+    </nav>
+
+    <div class="container">
+        <h1>Shopping Cart</h1>
+        
+        {% if cart_items %}
+            <div class="cart-items">
+                {% for item in cart_items %}
+                <div class="cart-item">
+                    <h3>{{ item.product.product_name }}</h3>
+                    <p>Price: ${{ item.product.unit_price }}</p>
+                    <div class="quantity-controls">
+                        <button class="btn">-</button>
+                        <span>{{ item.quantity }}</span>
+                        <button class="btn">+</button>
+                    </div>
+                    <p>Total: ${{ item.total_price }}</p>
+                    <button class="btn btn-danger">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="cart-summary">
+                <h3>Order Summary</h3>
+                <p>Subtotal: ${{ subtotal }}</p>
+                <p>Shipping: ${{ shipping }}</p>
+                <p><strong>Total: ${{ total }}</strong></p>
+                <a href="{% url 'checkout' %}" class="btn btn-primary">Proceed to Checkout</a>
+            </div>
+
+            {% if recommended_products %}
+            <div class="recommendations">
+                <h3>Complete Your Set</h3>
+                <div class="product-grid">
+                    {% for product in recommended_products %}
+                    <div class="product-card">
+                        <h4>{{ product.product_name }}</h4>
+                        <p>${{ product.unit_price }}</p>
+                        <button class="btn btn-primary">Add to Cart</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <p>Your cart is empty</p>
+            <a href="{% url 'all_products' %}" class="btn btn-primary">Continue Shopping</a>
+        {% endif %}
+    </div>
+</body>
+</html>

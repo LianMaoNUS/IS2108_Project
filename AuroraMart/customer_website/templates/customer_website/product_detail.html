@@ -1,0 +1,70 @@
+<!-- customer_website/templates/customer_website/product_detail.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ product.product_name }} - AuroraMart</title>
+    <style>
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .product-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .product-image { background: #f8f9fa; padding: 2rem; text-align: center; border-radius: 8px; }
+        .product-info { padding: 1rem; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .recommendations { margin-top: 3rem; }
+        .product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .product-card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <nav style="background: #f8f9fa; padding: 1rem;">
+        <a href="{% url 'main_page' %}">Home</a> |
+        <a href="{% url 'all_products' %}">Products</a> |
+        <a href="{% url 'cart' %}">Cart</a>
+    </nav>
+
+    <div class="container">
+        <div class="product-detail">
+            <div class="product-image">
+                <img src="https://via.placeholder.com/400x300" alt="{{ product.product_name }}">
+                <p>Product Image</p>
+            </div>
+            
+            <div class="product-info">
+                <h1>{{ product.product_name }}</h1>
+                <p class="price">${{ product.unit_price }}</p>
+                <p class="rating">⭐ {{ product.product_rating }}/5.0</p>
+                <p class="stock">In stock: {{ product.quantity_on_hand }} units</p>
+                
+                <p class="description">{{ product.description }}</p>
+                
+                <div class="purchase-options">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ product.quantity_on_hand }}">
+                    <button class="btn btn-primary">Add to Cart</button>
+                    <button class="btn">Buy Now</button>
+                </div>
+
+                <div class="product-meta">
+                    <p><strong>SKU:</strong> {{ product.sku }}</p>
+                    <p><strong>Category:</strong> {{ product.category.name }}</p>
+                </div>
+            </div>
+        </div>
+
+        {% if recommended_products %}
+        <div class="recommendations">
+            <h3>Frequently Bought Together</h3>
+            <div class="product-grid">
+                {% for rec_product in recommended_products %}
+                <div class="product-card">
+                    <h4>{{ rec_product.product_name }}</h4>
+                    <p>${{ rec_product.unit_price }}</p>
+                    <button class="btn btn-primary">Add to Cart</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
