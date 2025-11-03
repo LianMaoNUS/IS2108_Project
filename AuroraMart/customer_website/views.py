@@ -7,9 +7,50 @@ from admin_panel.models import Product, Category
 from django.views import View
 from .forms import CustomerLoginForm, CustomerSignupForm,CustomerForm
 from django.contrib.auth.hashers import check_password
+import pandas as pd
+import joblib
+import os
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
+
+
+def predict_preferred_category(customer_data):
+    model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
+    loaded_model = joblib.load(model_path)
+    columns = {
+        'age':'int64', 'household_size':'int64', 'has_children':'int64', 'monthly_income_sgd':'float64',
+        'gender_Female':'bool', 'gender_Male':'bool', 'employment_status_Full-time':'bool',
+        'employment_status_Part-time':'bool', 'employment_status_Retired':'bool',
+        'employment_status_Self-employed':'bool', 'employment_status_Student':'bool',
+        'occupation_Admin':'bool', 'occupation_Education':'bool', 'occupation_Sales':'bool',
+        'occupation_Service':'bool', 'occupation_Skilled Trades':'bool', 'occupation_Tech':'bool',
+        'education_Bachelor':'bool', 'education_Diploma':'bool', 'education_Doctorate':'bool',
+        'education_Master':'bool', 'education_Secondary':'bool'
+    }
+
+    df = pd.DataFrame({col: pd.Series(dtype=dtype) for col, dtype in columns.items()})
+    customer_df = pd.DataFrame([customer_data])
+    customer_encoded = pd.get_dummies(customer_df, columns=['gender', 'employment_status', 'occupation', 'education'])    
+
+    for col in df.columns:
+
+        if col not in customer_encoded.columns:
+
+            # Use False for bool columns, 0 for numeric
+            if df[col].dtype == bool:
+                df[col] = False
+            else:
+                df[col] = 0
+        
+        else:
+
+            df[col] = customer_encoded[col]
+    
+    # Now input_encoded can be used for prediction
+    prediction = loaded_model.predict(df)    
+
+    return prediction
 
 def main_page(request):
     if request.GET.get('logout') == 'true':
@@ -21,27 +62,6 @@ def main_page(request):
         'categories': categories,
         'featured_products': featured_products
     })
-
-class signupview(View):
-    form_class = CustomerSignupForm
-    template_name = 'customer_website/signup.html'
-    
-    def get(self, request, *args, **kwargs):
-        form = self.form_class()
-        return render(request, self.template_name, {"form": form})
-    
-    def post(self, request, *args, **kwargs):
-        form = self.form_class(request.POST)
-        
-        if form.is_valid():
-            form.save() 
-            return redirect('new_user')
-        else:
-            return render(request, self.template_name, {
-                "form": form, 
-                "error_message": error_check(form.errors.values())
-            })
-
 
 class loginview(View):
     form_class = CustomerLoginForm
@@ -68,20 +88,100 @@ class loginview(View):
             except Customer.DoesNotExist:
                 form.add_error(None, "User not found")
     
+        return render(request, self.template_name, {"form": form, "error_message": error_check(form.errors.values())})
+    
+
+class signupview(View):
+    form_class = CustomerSignupForm
+    template_name = 'customer_website/signup.html'
+    
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
         return render(request, self.template_name, {"form": form})
     
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        
+        if form.is_valid():
+            customer_username = form.cleaned_data.get('username')
+            check_password = form.cleaned_data.get('password_check')
+            if check_password == form.cleaned_data.get('password'):
+                request.session['new_user'] = True
+                request.session['new_user_username'] = customer_username
+                request.session['new_user_password'] = form.cleaned_data.get('password')
+                return redirect('new_user')
+            else:
+                form.add_error('password_check', "Passwords do not match")
+
+        return render(request, self.template_name, {
+                "form": form, 
+                "error_message": error_check(form.errors.values())
+            })
+
+
 class new_userview(View):
     template_name = 'customer_website/new_user.html'
     customer_details_form_class = CustomerForm
 
     def get(self, request, *args, **kwargs):
-        form = self.customer_details_form_class()
+        # Pre-populate username from session
+        username = request.session.get('new_user_username')
+        initial_data = {'username': username} if username else {}
+        form = self.customer_details_form_class(initial=initial_data)
         return render(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
+        username = request.session.get('new_user_username')
+        password = request.session.get('new_user_password')
+        
+        if not username or not password:
+            return redirect('signup')
+            
         form = self.customer_details_form_class(request.POST)
+        
         if form.is_valid():
-            form.save()
+            customer_data = form.cleaned_data  
+            customer_preferred = {
+                'age': customer_data.get('age'),
+                'gender': customer_data.get('gender'),
+                'employment_status': customer_data.get('employment_status'),
+                'occupation': customer_data.get('occupation'),
+                'education': customer_data.get('education'),
+                'household_size': customer_data.get('household_size'),
+                'has_children': True if customer_data['has_children'] else False,
+                'monthly_income_sgd': customer_data.get('monthly_income_sgd'),
+            }
+            preferred_category = predict_preferred_category(customer_preferred)
+            
+            # Create the customer instance manually
+            customer = Customer(
+                username=username,
+                password=password,
+                age=customer_data.get('age'),
+                gender=customer_data.get('gender'),
+                employment_status=customer_data.get('employment_status'),
+                occupation=customer_data.get('occupation'),
+                education=customer_data.get('education'),
+                household_size=customer_data.get('household_size'),
+                has_children= True if customer_data['has_children'] else False,
+                monthly_income_sgd=customer_data.get('monthly_income_sgd'),
+                preferred_category=preferred_category[0] if preferred_category else 'General'
+            )
+            
+            # Save the customer
+            customer.save()
+            print(f"Predicted category: {preferred_category}")
+            
+            # Set up login session
+            request.session['hasLogin'] = True
+            request.session['username'] = username
+            request.session['profile_picture'] = customer.profile_picture
+            
+            # Clear the signup session data
+            request.session.pop('new_user', None)
+            request.session.pop('new_user_username', None)
+            request.session.pop('new_user_password', None)
+            
             return redirect('customer_home')
         else:
             return render(request, self.template_name, {
@@ -96,17 +196,13 @@ def customer_home(request):
         request.session.flush()
         return redirect('login')
     
-    if hasattr(request.user, 'customer'):
-        categories = Category.objects.all()
-        products = Product.objects.all()[:12]
-        return render(request, 'customer_website/customer_home.html', {
+    categories = Category.objects.all()
+    products = Product.objects.all()[:12]
+    return render(request, 'customer_website/main_page.html', {
             'categories': categories,
             'products': products,
-            'customer': request.user.customer
-        })
-    else:
-        messages.error(request, "Access denied!")
-        return redirect('main_page')
+    })
+
 
 
 def cart_page(request):

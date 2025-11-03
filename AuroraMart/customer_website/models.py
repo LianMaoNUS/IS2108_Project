@@ -7,28 +7,36 @@ from django.contrib.auth.hashers import make_password, check_password
 # Create your models here.
 class Customer(User):
     GENDER_CHOICES = [
-        ('MALE', 'Male'),
-        ('FEMALE', 'Female'),
-        ('OTHER', 'Other'),
-        ('UNSPECIFIED', 'Prefer not to say'),
+        ('Male', 'Male'),
+        ('Female', 'Female'),
+        ('Other', 'Other'),
+        ('Unspecified', 'Prefer not to say'),
     ]
     EMPLOYMENT_CHOICES = [
-        ('EMPLOYED', 'Employed'),
-        ('UNEMPLOYED', 'Unemployed'),
-        ('STUDENT', 'Student'),
-        ('RETIRED', 'Retired'),
-        ('SELF_EMPLOYED', 'Self-employed'),
+        ('Employed', 'Employed'),
+        ('Unemployed', 'Unemployed'),
+        ('Student', 'Student'),
+        ('Retired', 'Retired'),
+        ('Self-employed', 'Self-employed'),
     ]
     EDUCATION_CHOICES = [
-        ('HIGH_SCHOOL', 'High School'),
-        ('DIPLOMA', 'Diploma'),
-        ('BACHELORS', "Bachelor's Degree"),
-        ('MASTERS', "Master's Degree"),
-        ('PHD', 'PhD'),
+        ('High School', 'High School'),
+        ('Diploma', 'Diploma'),
+        ('Bachelor', "Bachelor's Degree"),
+        ('Master', "Master's Degree"),
+        ('PhD', 'PhD'),
     ]
     HAS_CHILDREN_CHOICES = [
-        ('YES', 'Yes'),
-        ('NO', 'No'),
+        (True, 'Yes'),
+        (False, 'No'),
+    ]
+    OCCUPATION_CHOICES = [
+        ('Full-time', 'Full-time'),
+        ('Part-time', 'Part-time'),
+        ('Freelancer', 'Freelancer'),
+        ('Unemployed', 'Unemployed'),
+        ('Student', 'Student'),
+        ('Retired', 'Retired'),
     ]
 
     customer_id = models.CharField(max_length=20, primary_key=True, unique=True,editable=False)
