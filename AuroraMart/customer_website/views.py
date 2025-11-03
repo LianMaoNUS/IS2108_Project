@@ -4,9 +4,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .models import Customer
 from admin_panel.models import Product, Category
+from django.views import View
+from .forms import CustomerLoginForm, CustomerSignupForm,CustomerForm
+from django.contrib.auth.hashers import check_password
+
+def error_check(check):
+    return [msg for err_list in check for msg in err_list]
 
 def main_page(request):
-    """Homepage for AuroraMart"""
+    if request.GET.get('logout') == 'true':
+        request.session.flush()
+        return redirect('login')
     categories = Category.objects.all()[:6]  # Show first 6 categories
     featured_products = Product.objects.all()[:8]  # Show first 8 products
     return render(request, 'customer_website/main_page.html', {
@@ -14,56 +22,80 @@ def main_page(request):
         'featured_products': featured_products
     })
 
-def signup_page(request):
-    """Customer registration page"""
-    if request.method == 'POST':
-        # Get form data - use username instead of email
-        username = request.POST.get('username')  # Changed from email
-        password = request.POST.get('password')
-        confirm_password = request.POST.get('confirm_password')
-        
-        # Basic validation
-        if password != confirm_password:
-            messages.error(request, "Passwords do not match!")
-            return redirect('signup')
-        
-        # Check if username already exists (not email)
-        if Customer.objects.filter(username=username).exists():  # Changed from email
-            messages.error(request, "Username already exists!")
-            return redirect('signup')
-        
-        # Create customer (demographics will be collected later)
-        customer = Customer.objects.create(
-            username=username,  # Changed from email
-            password=password  # Will be hashed by your save() method
-        )
-        
-        messages.success(request, "Account created successfully! Please log in.")
-        return redirect('login')
+class signupview(View):
+    form_class = CustomerSignupForm
+    template_name = 'customer_website/signup.html'
     
-    return render(request, 'customer_website/signup.html')
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {"form": form})
+    
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        
+        if form.is_valid():
+            form.save() 
+            return redirect('new_user')
+        else:
+            return render(request, self.template_name, {
+                "form": form, 
+                "error_message": error_check(form.errors.values())
+            })
 
-def login_page(request):
-    """Customer login page"""
-    if request.method == 'POST':
-        username = request.POST.get('username')  # Changed from email
-        password = request.POST.get('password')
-        
-        # Authenticate user - use username instead of email
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None and hasattr(user, 'customer'):
-            login(request, user)
-            messages.success(request, f"Welcome back, {username}!")
+
+class loginview(View):
+    form_class = CustomerLoginForm
+    template_name = 'customer_website/login.html'
+
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {"form": form})
+    
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            try:
+                customer = Customer.objects.get(username=username)
+                if check_password(password, customer.password):
+                    request.session['hasLogin'] = True
+                    request.session['username'] = username
+                    request.session['profile_picture'] = customer.profile_picture
+                    return redirect('customer_home')
+                else:
+                    form.add_error(None, "Incorrect password")
+            except Customer.DoesNotExist:
+                form.add_error(None, "User not found")
+    
+        return render(request, self.template_name, {"form": form})
+    
+class new_userview(View):
+    template_name = 'customer_website/new_user.html'
+    customer_details_form_class = CustomerForm
+
+    def get(self, request, *args, **kwargs):
+        form = self.customer_details_form_class()
+        return render(request, self.template_name, {"form": form})
+    
+    def post(self, request, *args, **kwargs):
+        form = self.customer_details_form_class(request.POST)
+        if form.is_valid():
+            form.save()
             return redirect('customer_home')
         else:
-            messages.error(request, "Invalid username or password!")
-    
-    return render(request, 'customer_website/login.html')
+            return render(request, self.template_name, {
+                "form": form, 
+                "error_message": error_check(form.errors.values())
+            })  
 
-@login_required
 def customer_home(request):
     """Dashboard after login"""
+
+    if request.GET.get('logout') == 'true':
+        request.session.flush()
+        return redirect('login')
+    
     if hasattr(request.user, 'customer'):
         categories = Category.objects.all()
         products = Product.objects.all()[:12]
@@ -76,13 +108,6 @@ def customer_home(request):
         messages.error(request, "Access denied!")
         return redirect('main_page')
 
-def logout_view(request):
-    """Logout user"""
-    logout(request)
-    messages.success(request, "You have been logged out successfully!")
-    return redirect('main_page')
-
-# Add these to your existing views.py
 
 def cart_page(request):
     """Shopping cart page - placeholder for now"""
