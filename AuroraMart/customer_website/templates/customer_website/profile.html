@@ -1,0 +1,65 @@
+<!-- customer_website/templates/customer_website/profile.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Profile - AuroraMart</title>
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .profile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .profile-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .order-history { margin-top: 2rem; }
+        .order-item { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <nav style="background: #f8f9fa; padding: 1rem;">
+        <a href="{% url 'main_page' %}">Home</a> |
+        <a href="{% url 'customer_home' %}">Dashboard</a> |
+        <a href="{% url 'logout' %}">Logout</a>
+    </nav>
+
+    <div class="container">
+        <div class="profile-header">
+            <h1>My Profile</h1>
+            <span>Welcome, {{ customer.username }}!</span>
+        </div>
+
+        <div class="profile-card">
+            <h3>Personal Information</h3>
+            <p><strong>Username:</strong> {{ customer.username }}</p>
+            <p><strong>Customer ID:</strong> {{ customer.customer_id }}</p>
+            <p><strong>Member since:</strong> {{ customer.date_joined|date:"F j, Y" }}</p>
+            <p><strong>Preferred Category:</strong> {{ customer.preferred_category|default:"Not set" }}</p>
+            <button class="btn btn-primary">Edit Profile</button>
+        </div>
+
+        <div class="profile-card">
+            <h3>Demographic Information</h3>
+            <p><strong>Age:</strong> {{ customer.age|default:"Not provided" }}</p>
+            <p><strong>Gender:</strong> {{ customer.gender|default:"Not provided" }}</p>
+            <p><strong>Employment:</strong> {{ customer.employment_status|default:"Not provided" }}</p>
+            <p><strong>Income:</strong> {{ customer.monthly_income_sgd|default:"Not provided" }}</p>
+            <button class="btn btn-primary">Update Demographics</button>
+        </div>
+
+        <div class="order-history">
+            <h3>Order History</h3>
+            {% if orders %}
+                {% for order in orders %}
+                <div class="order-item">
+                    <p><strong>Order #{{ order.order_id }}</strong></p>
+                    <p>Date: {{ order.order_date|date:"F j, Y" }}</p>
+                    <p>Status: {{ order.status }}</p>
+                    <p>Total: ${{ order.total_amount }}</p>
+                    <button class="btn">View Details</button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No orders yet. <a href="{% url 'all_products' %}">Start shopping!</a></p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

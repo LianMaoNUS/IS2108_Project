@@ -1,0 +1,85 @@
+<!-- customer_website/templates/customer_website/about.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>About Us - AuroraMart</title>
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .hero { background: #007bff; color: white; padding: 3rem; text-align: center; border-radius: 8px; margin-bottom: 2rem; }
+        .mission-section, .team-section { margin-bottom: 3rem; }
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; }
+        .team-member { text-align: center; }
+        .values-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .value-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <nav style="background: #f8f9fa; padding: 1rem;">
+        <a href="{% url 'main_page' %}">Home</a> |
+        <a href="{% url 'all_products' %}">Products</a> |
+        <a href="{% url 'about' %}">About</a>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h1>About AuroraMart</h1>
+            <p>Everyday quality without the luxury markup</p>
+        </div>
+
+        <div class="mission-section">
+            <h2>Our Mission</h2>
+            <p>At AuroraMart, we believe that everyone deserves access to high-quality products without paying premium prices. We're revolutionizing e-commerce in Southeast Asia by combining smart technology with curated selections.</p>
+        </div>
+
+        <div class="values-section">
+            <h2>Our Values</h2>
+            <div class="values-list">
+                <div class="value-card">
+                    <h3>🛍️ Curated Selection</h3>
+                    <p>We carefully select products to offer breadth without decision fatigue.</p>
+                </div>
+                <div class="value-card">
+                    <h3>🤖 Smart Personalization</h3>
+                    <p>AI-powered recommendations to help you discover products you'll love.</p>
+                </div>
+                <div class="value-card">
+                    <h3>💰 Fair Pricing</h3>
+                    <p>Quality products at reasonable prices, always.</p>
+                </div>
+                <div class="value-card">
+                    <h3>🚚 Reliable Service</h3>
+                    <p>Fast shipping and excellent customer support across Southeast Asia.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <h2>By The Numbers</h2>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; text-align: center;">
+                <div>
+                    <h3>500+</h3>
+                    <p>Products</p>
+                </div>
+                <div>
+                    <h3>10,000+</h3>
+                    <p>Happy Customers</p>
+                </div>
+                <div>
+                    <h3>6</h3>
+                    <p>Countries Served</p>
+                </div>
+                <div>
+                    <h3>24/7</h3>
+                    <p>Customer Support</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="team-section">
+            <h2>Our Story</h2>
+            <p>AuroraMart was founded in 2024 with a simple vision: to make quality shopping accessible to everyone in Southeast Asia. Backed by venture capital and powered by cutting-edge AI technology, we're committed to delivering personalized shopping experiences that keep customers coming back.</p>
+            <p>Our name "Aurora" represents the dawn of a new era in e-commerce - one that's bright, personalized, and accessible to all.</p>
+        </div>
+    </div>
+</body>
+</html>
