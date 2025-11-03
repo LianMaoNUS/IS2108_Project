@@ -41,6 +41,7 @@ def generate_random_username():
     return username
 
 def populate_customers():
+    Customer.objects.all().delete()
     """Populate Customer model from customers.csv"""
     csv_path = os.path.join(os.path.dirname(__file__), 'b2c_customers_100.csv')
     
@@ -56,6 +57,7 @@ def populate_customers():
             try:
                 customer = Customer.objects.create(
                     username=generate_random_username(),
+                    password='Customer12345@',  # Default password for all customers
                     age=int(row.get('age', 0)) if row.get('age') else None,
                     gender=row.get('gender', ''),
                     employment_status=row.get('employment_status', ''),
@@ -139,10 +141,10 @@ def main():
 
     
     print("\n2. Populating Products...")
-    populate_products()
+    #populate_products()
     
     print("\n3. Populating Customers...")
-    #populate_customers()
+    populate_customers()
     
     print("\n" + "=" * 50)
     print("Data population completed!")

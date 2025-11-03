@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuroraMart - Complete Your Profile</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'customer_website/css/login_signup.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .new-user-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 480px;
+            text-align: center;
+            max-height: fit-content;
+        }
+
+        .welcome-title {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            font-weight: 400;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-field-full {
+            grid-column: 1 / -1;
+        }
+
+        .form-field select,
+        .form-field input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Spoof', sans-serif;
+            font-size: 0.95rem;
+        }
+
+        .form-field select:focus,
+        .form-field input:focus {
+            outline: none;
+            border-color: #6c63ff;
+            box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.1);
+        }
+
+        .form-field label {
+            display: block;
+            text-align: left;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+            font-family: 'Spoof', sans-serif;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+
+        .error-list {
+            color: #e74c3c;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            text-align: left;
+        }
+
+        .required-asterisk {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="new-user-container">
+        <div class="logo-header">
+            {% load static %}
+            <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
+        </div>
+
+        <h1 class="welcome-title">Before you begin...</h1>
+        <h2 class="welcome-subtitle">Let's get some more details to personalize your experience</h2>
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="{{ form.age.id_for_label }}">Age</label>
+                    {{ form.age }}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.gender.id_for_label }}">Gender</label>
+                    {{ form.gender }}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.employment_status.id_for_label }}">Employment Status</label>
+                    {{ form.employment_status }}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.education.id_for_label }}">Education Level</label>
+                    {{ form.education }}
+                </div>
+
+                <div class="form-field form-field-full">
+                    <label for="{{ form.occupation.id_for_label }}">Occupation</label>
+                    {{ form.occupation }}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.household_size.id_for_label }}">Household Size</label>
+                    {{ form.household_size }}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.monthly_income_sgd.id_for_label }}">Monthly Income (SGD)</label>
+                    {{ form.monthly_income_sgd }}
+                </div>
+
+                <div class="form-field form-field-full">
+                    <label for="{{ form.preferred_category.id_for_label }}">Preferred Category</label>
+                    {{ form.preferred_category }}
+                </div>
+
+                <div class="form-field form-field-full">
+                    <div class="checkbox-container">
+                        {{ form.has_children }}
+                        <label for="{{ form.has_children.id_for_label }}">I have children</label>
+                    </div>
+                </div>
+            </div>
+
+            {% if form.errors %}
+                <div class="error-list">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <p class="error-message">{{ error }}</p>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-arrow-right" style="margin-right: 8px;"></i>
+                Complete Setup
+            </button>
+        </form>
+
+        <div style="margin-top: 1.5rem; font-size: 0.85rem; color: #888;">
+            <i class="fas fa-shield-alt" style="margin-right: 5px;"></i>
+            Your information is secure and will only be used to improve your shopping experience.
+        </div>
+    </main>
+</body>
+
+</html>

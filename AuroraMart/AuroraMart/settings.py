@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'admin_panel.middlewares.AdminAuthMiddleware',
+    'customer_website.middlewares.CustomerAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'AuroraMart.urls'

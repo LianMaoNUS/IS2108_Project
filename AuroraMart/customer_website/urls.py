@@ -2,10 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.main_page, name='main_page'),
-    path('signup/', views.signup_page, name='signup'),
-    path('login/', views.login_page, name='login'),
-    path('logout/', views.logout_view, name='logout'),
+    path('', views.loginview.as_view(), name='main_page'),
+    path('signup/', views.signupview.as_view(), name='signup'),
+    path('login/', views.loginview.as_view(), name='login'),
+    #add middleware to protect these routes
+    path('new_user/', views.new_userview.as_view(), name='new_user'),
     path('home/', views.customer_home, name='customer_home'),
     path('cart/', views.cart_page, name='cart'),
     path('checkout/', views.checkout_page, name='checkout'),

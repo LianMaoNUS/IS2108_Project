@@ -1,167 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - AuroraMart</title>
-    <style>
-        .container { 
-            max-width: 400px; 
-            margin: 2rem auto; 
-            padding: 2rem; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-group { 
-            margin-bottom: 1rem; 
-        }
-        label { 
-            display: block; 
-            margin-bottom: 0.5rem; 
-            font-weight: bold;
-        }
-        input, select { 
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            box-sizing: border-box;
-        }
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            background: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            font-size: 16px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .messages { 
-            margin-bottom: 1rem; 
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .error { 
-            background: #f8d7da; 
-            color: #721c24; 
-            border: 1px solid #f5c6cb;
-        }
-        .success { 
-            background: #d4edda; 
-            color: #155724; 
-            border: 1px solid #c3e6cb;
-        }
-        .password-container {
-            position: relative;
-        }
-        .password-container i {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-        }
-        .auth-nav {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 1rem;
-        }
-        .auth-nav a {
-            padding: 10px 20px;
-            text-decoration: none;
-            color: #666;
-        }
-        .auth-nav a.active {
-            color: #007bff;
-            border-bottom: 2px solid #007bff;
-        }
-    </style>
+    <title>AuroraMart</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'customer_website/css/login_signup.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="{% static 'customer_website/script/login_signup.js' %}"></script>
 </head>
-<body>
-    <nav style="background: #f8f9fa; padding: 1rem;">
-        <a href="{% url 'main_page' %}">← Back to Home</a>
-    </nav>
 
-    <div class="container">
+<body>
+
+    <main class="login-container">
         <nav class="auth-nav">
             <a href="{% url 'login' %}">Login</a>
             <a href="#" class="active">Sign up</a>
         </nav>
 
-        <h2 style="text-align: center; margin-bottom: 1.5rem;">Create Your Customer Account</h2>
-        
-        {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            <div class="{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
+        <div class="logo-header">
+            {% load static %}
+            <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
         </div>
-        {% endif %}
-
-        <form method="POST">
+        <form class="login-form" method="post">
             {% csrf_token %}
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
+            {{ form.username }}
+            <div class="password-container">
+                {{ form.password }}
+                <i class="fa-solid fa-eye fa-lg" id="togglePassword"></i>
             </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <div class="password-container">
-                    <input type="password" id="password" name="password" required>
-                    <i class="fa-solid fa-eye" id="togglePassword" onclick="togglePassword()"></i>
-                </div>
+            <div class="password-container">
+                {{ form.password_check }}
+                <i class="fa-solid fa-eye fa-lg" id="togglePassword2"></i>
             </div>
-            <div class="form-group">
-                <label for="confirm_password">Confirm Password:</label>
-                <div class="password-container">
-                    <input type="password" id="confirm_password" name="confirm_password" required>
-                    <i class="fa-solid fa-eye" id="togglePassword2" onclick="togglePassword2()"></i>
-                </div>
+            {{ form.role }}
+
+            {% if error_message %}
+            <div class="error-list" style="color: red; font-size: small;">
+                {% for error in error_message %}
+                    <p class="error-message">{{ error }}</p>
+                {% endfor %}
             </div>
-            <button type="submit">Sign Up</button>
+            {% endif %}
+
+            <button id="login-button" type="submit">
+                <span class="button-text">Sign up</span>
+                <span class="spinner" style="display: none;"></span>
+            </button>
         </form>
-        
-        <p style="text-align: center; margin-top: 1rem;">
-            Already have an account? <a href="{% url 'login' %}">Login here</a>
-        </p>
-    </div>
+        <p >Already have an account? <a class="login-confirm" href="{% url 'login' %}">Login here</a>.</p>
+    </main>
 
-    <script>
-        function togglePassword() {
-            const password = document.getElementById('password');
-            const icon = document.getElementById('togglePassword');
-            if (password.type === 'password') {
-                password.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                password.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-        }
-
-        function togglePassword2() {
-            const password = document.getElementById('confirm_password');
-            const icon = document.getElementById('togglePassword2');
-            if (password.type === 'password') {
-                password.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                password.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-        }
-    </script>
-
-    <!-- Font Awesome for icons -->
-    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js" crossorigin="anonymous"></script>
 </body>
+
 </html>
