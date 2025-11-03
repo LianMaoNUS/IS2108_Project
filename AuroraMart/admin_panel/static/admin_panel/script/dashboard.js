@@ -2,6 +2,7 @@
         modal.style.display = 'none';
         newUrl = currentUrl.split('&')[0];
         window.history.replaceState({}, '', newUrl);
+        location.reload();
     }
     
     function toggleAll(source) {      

@@ -27,10 +27,7 @@ class Admin(User):
 class Category(models.Model):
     category_id = models.CharField(max_length=20, primary_key=True, unique=True)
     name = models.CharField(max_length=255, unique=True)
-    # The recursive relationship: a category can have a parent, which is also a Category.
-    # 'self' creates the link to the same model.
-    # related_name helps in querying for subcategories easily.
-    parent_category = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategories')
+    is_subcategory = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -45,7 +42,6 @@ class Category(models.Model):
         # Ensures plural form is "Categories" in the admin panel
         verbose_name_plural = "Categories"
 
-#img
 class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True,primary_key=True)
     product_name = models.CharField(max_length=255)
@@ -54,7 +50,13 @@ class Product(models.Model):
     product_rating = models.FloatField(default=0.0)
     quantity_on_hand = models.PositiveIntegerField(default=0)
     reorder_quantity = models.PositiveIntegerField(default=10)
+    product_image = models.URLField(
+        max_length=500,
+        default='https://cdn.mmem.com.au/media/catalog/product/placeholder/default/product-image.jpg',
+        help_text='Product image URL'
+    )   
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_products')
 
     def __str__(self):
         return self.product_name

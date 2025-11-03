@@ -22,11 +22,11 @@
             </div>
 
             <div class="admin-profile">
-                <img src="https://www.pngmart.com/files/21/Admin-Profile-Vector-PNG-Clipart.png" alt="Admin Profile"
+                <img src="{{ profile_picture }}" alt="Admin Profile"
                     class="profile-pic">
                 <div class="profile-info">
-                    <p class="admin-name">{{username}}</p>
-                    <p class="admin-role">{{user_role}}</p>
+                    <p class="admin-name">{{ username }}</p>
+                    <p class="admin-role">{{ user_role }}</p>
                 </div>
                 <button class="action-btn update-btn"><a
                         href="{% url 'admin_dashboard' %}?type={{type}}&modal=show&action=Update&admin_details=true">Update</a></button>
