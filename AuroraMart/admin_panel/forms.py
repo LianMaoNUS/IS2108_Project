@@ -1,7 +1,7 @@
 import re
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
-from admin_panel.models import Admin,Category,Product,Order
+from admin_panel.models import Admin,Category,Product,Order,OrderItem
 from customer_website.models import Customer
 from AuroraMart.models import User
 
@@ -88,7 +88,7 @@ class AdminSignupForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category']
+        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category', 'subcategory']
 
 class CustomerForm(forms.ModelForm):
     class Meta:
@@ -104,5 +104,9 @@ class OrderForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ['name','parent_category']
+        fields = ['name','is_subcategory']
 
+class OrderItemForm(forms.ModelForm):
+    class Meta:
+        model = OrderItem
+        fields = ['order_id','product','quantity','price_at_purchase']
