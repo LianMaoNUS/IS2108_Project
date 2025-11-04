@@ -97,6 +97,7 @@ def populate_products():
             print(row.get('\ufeffsku'))
             try:
                 category = None
+<<<<<<< HEAD
                 subcategory = None
                 
                 # Handle main category
@@ -127,12 +128,33 @@ def populate_products():
 
                 # Use subcategory if available, otherwise use main category
                 product_category = category
+=======
+                if row.get('Product Category'):
+                    if not Category.objects.filter(name=row.get('Product Category')).exists():
+                        category = Category.objects.create(name=row.get('Product Category').strip(),is_subcategory=False)
+                        print(f"Created category: {category.name}")
+                    else:
+                        category = Category.objects.get(name=row.get('Product Category').strip())
+                    if not Category.objects.filter(name=row.get('Product Subcategory')).exists():
+                        subcategory = Category.objects.create(name=row.get('Product Subcategory').strip(), is_subcategory=True)
+                        print(f"Created subcategory: {subcategory.name} under {category.name}")
+                    else:
+                        subcategory = Category.objects.get(name=row.get('Product Subcategory').strip())
+
+                # Use subcategory if available, otherwise use main category
+                product_category = subcategory if subcategory else category
+>>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
 
                 product = Product.objects.create(
                     sku=row.get('\ufeffsku'),
                     product_name=row.get('Product name', ''),
+<<<<<<< HEAD
                     category=product_category,  # Single category field now
                     subcategory=subcategory,
+=======
+                    category=product_category,
+                    subcategory=subcategory if 'subcategory' in locals() else None,
+>>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
                     unit_price=Decimal(row.get('Unit price', '0')) if row.get('Unit price') else Decimal('0'),
                     quantity_on_hand=int(row.get('Quantity on hand', 0)) if row.get('Quantity on hand') else 0,
                     reorder_quantity=int(row.get('Reorder Quantity', 10)) if row.get('Reorder Quantity') else 10,
@@ -141,7 +163,11 @@ def populate_products():
                 )
                 if product:
                     products_created += 1
+<<<<<<< HEAD
                     print(f"Created product: {product.product_name} in category: {product_category}")
+=======
+                    print(f"Created product: {product.product_name}")
+>>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
                 else:
                     print(f"Product already exists: {product.product_name}")
                     
@@ -157,10 +183,17 @@ def main():
 
     
     print("\n2. Populating Products...")
+<<<<<<< HEAD
     populate_products()
     
     print("\n3. Populating Customers...")
     #populate_customers()
+=======
+    #populate_products()
+    
+    print("\n3. Populating Customers...")
+    populate_customers()
+>>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
     
     print("\n" + "=" * 50)
     print("Data population completed!")

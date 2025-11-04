@@ -86,6 +86,7 @@ class CustomerSignupForm(forms.ModelForm):
         return cleaned_data
     
 class CustomerForm(forms.ModelForm):
+<<<<<<< HEAD
     gender = forms.ChoiceField(
         choices=[('', 'Select Gender')] + Customer.GENDER_CHOICES,
         required=False,
@@ -148,3 +149,8 @@ class CustomerForm(forms.ModelForm):
                 'min': '0'
             }),
         }
+=======
+    class Meta:
+        model = Customer
+        fields  = ['username', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
+>>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
