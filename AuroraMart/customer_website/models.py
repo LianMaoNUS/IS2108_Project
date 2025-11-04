@@ -7,7 +7,6 @@ from django.contrib.auth.hashers import make_password, check_password
 # Create your models here.
 class Customer(User):
     GENDER_CHOICES = [
-<<<<<<< HEAD
         ('Male', 'Male'),
         ('Female', 'Female'),
         ('Other', 'Other'),
@@ -38,30 +37,6 @@ class Customer(User):
         ('Unemployed', 'Unemployed'),
         ('Student', 'Student'),
         ('Retired', 'Retired'),
-=======
-        ('MALE', 'Male'),
-        ('FEMALE', 'Female'),
-        ('OTHER', 'Other'),
-        ('UNSPECIFIED', 'Prefer not to say'),
-    ]
-    EMPLOYMENT_CHOICES = [
-        ('EMPLOYED', 'Employed'),
-        ('UNEMPLOYED', 'Unemployed'),
-        ('STUDENT', 'Student'),
-        ('RETIRED', 'Retired'),
-        ('SELF_EMPLOYED', 'Self-employed'),
-    ]
-    EDUCATION_CHOICES = [
-        ('HIGH_SCHOOL', 'High School'),
-        ('DIPLOMA', 'Diploma'),
-        ('BACHELORS', "Bachelor's Degree"),
-        ('MASTERS', "Master's Degree"),
-        ('PHD', 'PhD'),
-    ]
-    HAS_CHILDREN_CHOICES = [
-        ('YES', 'Yes'),
-        ('NO', 'No'),
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
     ]
 
     customer_id = models.CharField(max_length=20, primary_key=True, unique=True,editable=False)
