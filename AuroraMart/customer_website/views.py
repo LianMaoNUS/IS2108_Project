@@ -16,6 +16,13 @@ def error_check(check):
     return [msg for err_list in check for msg in err_list]
 
 
+def convert_product_prices(products, currency_info):
+    for product in products:
+        converted_price = product.unit_price * currency_info['rate']
+        product.unit_price = converted_price.quantize(Decimal('0.01'))
+    return products
+
+
 def predict_preferred_category(customer_data):
     model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
     loaded_model = joblib.load(model_path)
@@ -97,9 +104,7 @@ def main_page(request):
     featured_products = Product.objects.all()[:8]  # Show first 8 products
     
     # Convert prices for each product
-    for product in featured_products:
-        converted_price = product.unit_price * currency_info['rate']
-        product.converted_price = converted_price.quantize(Decimal('0.01'))
+    convert_product_prices(featured_products, currency_info)
     
     return render(request, 'customer_website/main_page.html', {
         'categories': categories,
@@ -233,7 +238,7 @@ class new_userview(View):
             return render(request, self.template_name, {
                 "form": form, 
                 "error_message": error_check(form.errors.values())
-            })  
+            })       
         
 class mainpageview(View):
     template_name = 'customer_website/main_page.html'
@@ -255,10 +260,10 @@ class mainpageview(View):
             'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
         }
         currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
+        top_products = Product.objects.order_by('-reorder_quantity')[:10]
 
-        for product in products:
-            converted_price = product.unit_price * currency_info['rate'] 
-            product.unit_price = converted_price.quantize(Decimal('0.01'))
+        convert_product_prices(products, currency_info)
+        convert_product_prices(top_products, currency_info)
 
         return render(request, self.template_name, {
             'username': request.session.get('username'),
@@ -268,6 +273,7 @@ class mainpageview(View):
             'products': products,
             'selected_currency': selected_currency,
             'currency_symbol': currency_info['symbol'],
+            'top_products': top_products,
         })
 
 

@@ -27,7 +27,6 @@ class Admin(User):
 class Category(models.Model):
     category_id = models.CharField(max_length=20, primary_key=True, unique=True)
     name = models.CharField(max_length=255, unique=True)
-<<<<<<< HEAD
     parent_category = models.ForeignKey(
         'self', 
         on_delete=models.CASCADE, 
@@ -40,16 +39,10 @@ class Category(models.Model):
     def __str__(self):
         if self.parent_category:
             return f"{self.parent_category.name} > {self.name}"
-=======
-    is_subcategory = models.BooleanField(default=False)
-
-    def __str__(self):
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
         return self.name
     
     def save(self,*args, **kwargs):
         if not self.category_id:
-<<<<<<< HEAD
             self.category_id = "CAT-" + str(uuid.uuid4())
         return super().save(*args, **kwargs)
     
@@ -67,12 +60,6 @@ class Category(models.Model):
             return self.parent_category.get_main_category()
         return self
     
-=======
-            print("hhhh")
-            self.category_id = "CAT-" + str(uuid.uuid4())
-        return super().save(*args, **kwargs)
-    
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
     class Meta:
         # Ensures plural form is "Categories" in the admin panel
         verbose_name_plural = "Categories"
@@ -90,7 +77,6 @@ class Product(models.Model):
         default='https://cdn.mmem.com.au/media/catalog/product/placeholder/default/product-image.jpg',
         help_text='Product image URL'
     )   
-<<<<<<< HEAD
     category = models.ForeignKey(
         Category, 
         on_delete=models.SET_NULL, 
@@ -107,10 +93,6 @@ class Product(models.Model):
         related_name='subcategory_products',
         help_text='Select a subcategory if applicable'
     )
-=======
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_products')
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
 
     def __str__(self):
         return self.product_name

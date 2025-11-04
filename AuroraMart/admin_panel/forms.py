@@ -88,7 +88,6 @@ class AdminSignupForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-<<<<<<< HEAD
         fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category','subcategory']
         
     def __init__(self, *args, **kwargs):
@@ -139,9 +138,6 @@ class ProductForm(forms.ModelForm):
                 raise forms.ValidationError("Selected option is not a valid subcategory.")
         
         return subcategory
-=======
-        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category', 'subcategory']
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
 
 class CustomerForm(forms.ModelForm):
     class Meta:
@@ -157,7 +153,6 @@ class OrderForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-<<<<<<< HEAD
         fields = ['name','parent_category']
     
     def __init__(self, *args, **kwargs):
@@ -165,9 +160,6 @@ class CategoryForm(forms.ModelForm):
         # Filter parent_category to only show main categories (where parent_category is null)
         self.fields['parent_category'].queryset = Category.objects.filter(parent_category__isnull=True)
         self.fields['parent_category'].empty_label = "Select a main category (leave blank for main category)"
-=======
-        fields = ['name','is_subcategory']
->>>>>>> 22aa262936ccb0cc0fa0b2c51c017d722aef8917
 
 class OrderItemForm(forms.ModelForm):
     class Meta:

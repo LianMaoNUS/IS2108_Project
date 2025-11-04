@@ -81,3 +81,60 @@
                 }
             }
         });
+
+// Product Grid Horizontal Scrolling Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Recommended Products Section
+    const productGrid = document.getElementById('product-grid');
+    const scrollLeftBtn = document.getElementById('scroll-left');
+    const scrollRightBtn = document.getElementById('scroll-right');
+    
+    // Top Products Section
+    const topProductGrid = document.getElementById('top-product-grid');
+    const scrollLeftTopBtn = document.getElementById('scroll-left-top');
+    const scrollRightTopBtn = document.getElementById('scroll-right-top');
+    
+    // Amount to scroll (can be adjusted)
+    const scrollAmount = 300; // pixels
+    
+    // Function to set up scrolling for a grid
+    function setupScrolling(grid, leftBtn, rightBtn) {
+        if (grid && leftBtn && rightBtn) {
+            // Left arrow click event
+            leftBtn.addEventListener('click', function() {
+                grid.scrollBy({
+                    left: -scrollAmount,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Right arrow click event
+            rightBtn.addEventListener('click', function() {
+                grid.scrollBy({
+                    left: scrollAmount,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Update arrow visibility based on scroll position
+            function updateArrowVisibility() {
+                const isAtStart = grid.scrollLeft <= 0;
+                const isAtEnd = grid.scrollLeft >= (grid.scrollWidth - grid.clientWidth);
+                
+                // Add/remove disabled class for styling
+                leftBtn.classList.toggle('disabled', isAtStart);
+                rightBtn.classList.toggle('disabled', isAtEnd);
+            }
+            
+            // Listen for scroll events to update arrow visibility
+            grid.addEventListener('scroll', updateArrowVisibility);
+            
+            // Initial check
+            updateArrowVisibility();
+        }
+    }
+    
+    // Set up scrolling for both sections
+    setupScrolling(productGrid, scrollLeftBtn, scrollRightBtn);
+    setupScrolling(topProductGrid, scrollLeftTopBtn, scrollRightTopBtn);
+});
