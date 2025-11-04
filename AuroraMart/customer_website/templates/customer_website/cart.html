@@ -1,72 +1,194 @@
-<!-- customer_website/templates/customer_website/cart.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopping Cart - AuroraMart</title>
-    <style>
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .cart-item { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
-        .cart-summary { background: #f8f9fa; padding: 1rem; border-radius: 8px; }
-        .quantity-controls { display: flex; align-items: center; gap: 0.5rem; }
-        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-    </style>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'customer_website/css/cart.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="{% static 'customer_website/script/cart.js' %}"></script>
 </head>
 <body>
-    <nav style="background: #f8f9fa; padding: 1rem;">
-        <a href="{% url 'main_page' %}">Home</a> |
-        <a href="{% url 'all_products' %}">Products</a> |
-        <a href="{% url 'cart' %}">Cart ({{ cart_items|length }})</a>
+    <nav class="navbar">
+        <a href="{% url 'customer_home' %}" class="logo">
+            <div class="logo-container">
+                <div class="logo-circle">
+                    <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
+                </div>
+            </div>
+        </a>
+
+        <div class="nav-links">
+            <a class="nav-link" href="#">Browse</a>
+            <a class="nav-link" href="#">About</a>
+            <a href="#" class="nav-profile-link">
+                <img src="{{ profile_picture }}" alt="Profile" class="nav-profile-pic">
+            </a>
+            <a href="{% url 'cart' %}" class="nav-icon cart-icon">
+                <i class="fa-solid fa-cart-shopping"></i>
+                {% if cart_count > 0 %}
+                <span class="cart-badge">{{ cart_count }}</span>
+                {% endif %}
+            </a>
+            <div class="currency-selector">
+                <select class="currency-dropdown" id="currency-selector">
+                    <option value="SGD" {% if selected_currency == 'SGD' %}selected{% endif %}>SGD S$</option>
+                    <option value="USD" {% if selected_currency == 'USD' %}selected{% endif %}>USD $</option>
+                    <option value="EUR" {% if selected_currency == 'EUR' %}selected{% endif %}>EUR €</option>
+                    <option value="JPY" {% if selected_currency == 'JPY' %}selected{% endif %}>JPY ¥</option>
+                    <option value="GBP" {% if selected_currency == 'GBP' %}selected{% endif %}>GBP £</option>
+                </select>
+            </div>
+        </div>
     </nav>
 
-    <div class="container">
-        <h1>Shopping Cart</h1>
-        
-        {% if cart_items %}
-            <div class="cart-items">
-                {% for item in cart_items %}
-                <div class="cart-item">
-                    <h3>{{ item.product.product_name }}</h3>
-                    <p>Price: ${{ item.product.unit_price }}</p>
-                    <div class="quantity-controls">
-                        <button class="btn">-</button>
-                        <span>{{ item.quantity }}</span>
-                        <button class="btn">+</button>
-                    </div>
-                    <p>Total: ${{ item.total_price }}</p>
-                    <button class="btn btn-danger">Remove</button>
-                </div>
-                {% endfor %}
-            </div>
+    <main>
+        <div class="breadcrumb">
+            <a href="{% url 'customer_home' %}">Home</a>
+            <span class="separator">></span>
+            <span class="current">Shopping Cart</span>
+        </div>
 
-            <div class="cart-summary">
-                <h3>Order Summary</h3>
-                <p>Subtotal: ${{ subtotal }}</p>
-                <p>Shipping: ${{ shipping }}</p>
-                <p><strong>Total: ${{ total }}</strong></p>
-                <a href="{% url 'checkout' %}" class="btn btn-primary">Proceed to Checkout</a>
-            </div>
-
-            {% if recommended_products %}
-            <div class="recommendations">
-                <h3>Complete Your Set</h3>
-                <div class="product-grid">
-                    {% for product in recommended_products %}
-                    <div class="product-card">
-                        <h4>{{ product.product_name }}</h4>
-                        <p>${{ product.unit_price }}</p>
-                        <button class="btn btn-primary">Add to Cart</button>
+        <div class="cart-container">
+            <h1>Shopping Cart</h1>
+            
+            {% if cart_items %}
+                <div class="cart-content">
+                    <div class="cart-items">
+                        {% for item in cart_items %}
+                        <div class="cart-item">
+                            <div class="item-image">
+                                {% if item.product_image %}
+                                    <img src="{{ item.product_image }}" alt="{{ item.product_name }}">
+                                {% else %}
+                                    <div class="image-placeholder">
+                                        <i class="fa-solid fa-image"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="item-details">
+                                <h3>{{ item.product_name }}</h3>
+                                <p class="item-sku">SKU: {{ item.sku }}</p>
+                                <p class="item-price">{{ currency_symbol }}{{ item.unit_price }}</p>
+                            </div>
+                            <div class="item-quantity">
+                                <label>Quantity:</label>
+                                <div class="quantity-controls">
+                                    <a href="{% url 'cart' %}?update_sku={{ item.sku }}&action=decrease" class="quantity-btn">-</a>
+                                    <span class="quantity-value">{{ item.quantity }}</span>
+                                    <a href="{% url 'cart' %}?update_sku={{ item.sku }}&action=increase" class="quantity-btn">+</a>
+                                </div>
+                            </div>
+                            <div class="item-total">
+                                <p>{{ currency_symbol }}{{ item.total }}</p>
+                            </div>
+                            <div class="item-actions">
+                                <a href="#" onclick="removeItem('{{ item.sku }}', '{{ item.product_name }}')" class="btn btn-danger">
+                                    <i class="fa-solid fa-trash"></i>
+                                    Remove
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+
+                    <div class="cart-summary">
+                        <h3>Order Summary</h3>
+                        <div class="summary-line">
+                            <span>Subtotal:</span>
+                            <span>{{ currency_symbol }}{{ subtotal }}</span>
+                        </div>
+                        <div class="summary-line">
+                            <span>Shipping:</span>
+                            <span>{{ currency_symbol }}{{ shipping }}</span>
+                        </div>
+                        <div class="summary-line total">
+                            <span><strong>Total:</strong></span>
+                            <span><strong>{{ currency_symbol }}{{ total }}</strong></span>
+                        </div>
+                        <div class="summary-actions">
+                            <a href="{% url 'customer_home' %}" class="btn btn-secondary">Continue Shopping</a>
+                            <a href="{% url 'checkout' %}" class="btn btn-primary">Proceed to Checkout</a>
+                            <button class="btn btn-outline" onclick="clearCart()">Clear Cart</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            {% else %}
+                <div class="empty-cart">
+                    <div class="empty-cart-icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                    <h2>Your cart is empty</h2>
+                    <p>Looks like you haven't added anything to your cart yet.</p>
+                    <a href="{% url 'customer_home' %}" class="btn btn-primary">Start Shopping</a>
+                </div>
             {% endif %}
+        </div>
+    </main>
 
-        {% else %}
-            <p>Your cart is empty</p>
-            <a href="{% url 'all_products' %}" class="btn btn-primary">Continue Shopping</a>
-        {% endif %}
-    </div>
+    <footer>
+        <div class="footer-main">
+            <div class="footer-col-logo">
+                <div class="footer-logo">
+                    <div class="logo-circle footer-logo-circle">
+                        <span class="logo-text">AM</span>
+                    </div>
+                    <span class="logo-name">AuroraMart</span>
+                </div>
+                <div class="social-icons">
+                    <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
+                    <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                </div>
+            </div>
+            <div class="footer-col-links">
+                <h3>Help</h3>
+                <ul>
+                    <li><a href="#">FAQ</a></li>
+                    <li><a href="#">Customer service</a></li>
+                    <li><a href="#">How to guides</a></li>
+                    <li><a href="#">Contact us</a></li>
+                </ul>
+            </div>
+            <div class="footer-col-links">
+                <h3>Other</h3>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">About us</a></li>
+                    <li><a href="#">Subscriptions</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 AuroraMart. Everyday quality without luxury markup.</p>
+        </div>
+    </footer>
+
+    <script>
+        function clearCart() {
+            if (confirm('Are you sure you want to clear your cart?')) {
+                window.location.href = '{% url "cart"%}?clear=true';
+            }
+        }
+        
+        function removeItem(sku, productName) {
+            if (confirm('Are you sure you want to remove "' + productName + '" from your cart?')) {
+                window.location.href = '{% url "cart" %}?remove_sku=' + sku;
+            }
+        }
+        
+        // Currency selector functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const currencySelector = document.getElementById('currency-selector');
+            if (currencySelector) {
+                currencySelector.addEventListener('change', function() {
+                    const selectedCurrency = this.value;
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('currency', selectedCurrency);
+                    window.location.href = currentUrl.toString();
+                });
+            }
+        });
+    </script>
 </body>
 </html>

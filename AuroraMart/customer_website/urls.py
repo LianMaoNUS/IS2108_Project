@@ -8,7 +8,7 @@ urlpatterns = [
     #add middleware to protect these routes
     path('new_user/', views.new_userview.as_view(), name='new_user'),
     path('home/', views.mainpageview.as_view(), name='customer_home'),
-    path('cart/', views.cart_page, name='cart'),
+    path('cart/', views.cartview.as_view(), name='cart'),
     path('checkout/', views.checkout_page, name='checkout'),
     path('profile/', views.profile_page, name='profile'),
     path('product/<str:sku>/', views.product_detailview.as_view(), name='product_detail'),

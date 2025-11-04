@@ -17,7 +17,13 @@ def error_check(check):
 
 
 def get_currency_context(request):
-    selected_currency = request.GET.get('currency', 'SGD')
+    url_currency = request.GET.get('currency')
+    if url_currency:
+        # Save the selected currency to session
+        request.session['selected_currency'] = url_currency
+        request.session.modified = True
+    
+    selected_currency = request.session.get('selected_currency', 'SGD')
     
     currency_rates = {
         'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
@@ -43,7 +49,10 @@ def convert_product_prices(products, currency_info):
         product.unit_price = converted_price.quantize(Decimal('0.01'))
     return products
 
-
+def convert_cart_prices(product, currency_info):
+    converted_price = Decimal(str(product)) * currency_info['rate']
+    return converted_price.quantize(Decimal('0.01'))
+ 
 def get_cart_count(request):
     cart = request.session.get('cart', {})
     return len(cart)
@@ -288,8 +297,7 @@ class product_detailview(View):
                 request.session['cart'] = cart
                 request.session.modified = True
                 
-                currency = request.GET.get('currency', 'SGD')
-                return redirect(f"{request.path}?currency={currency}&cart_added=true")
+                return redirect(f"{request.path}?cart_added=true")
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
@@ -331,44 +339,83 @@ class product_detailview(View):
             
             return render(request, self.template_name, context)
 
+class cartview(View):   
+    template_name = 'customer_website/cart.html'
 
-def cart_page(request):
-    """Shopping cart page"""
-    # Handle clear cart action
-    if request.GET.get('clear') == 'true':
-        request.session['cart'] = {}
-        request.session.modified = True
-        return redirect('cart')  # Redirect to clean URL
-    
-    cart = request.session.get('cart', {})
-    cart_items = []
-    subtotal = 0
-    
-    # Convert cart session data to a more usable format
-    for sku, item_data in cart.items():
-        item_total = item_data['unit_price'] * item_data['quantity']
-        cart_items.append({
-            'sku': sku,
-            'product_name': item_data['product_name'],
-            'unit_price': item_data['unit_price'],
-            'quantity': item_data['quantity'],
-            'total': item_total,
-            'product_image': item_data.get('product_image')
-        })
-        subtotal += item_total
-    
-    shipping = 5.00 if subtotal > 0 else 0  # Example shipping cost
-    total = subtotal + shipping
-    
-    return render(request, 'customer_website/cart.html', {
-        'cart_items': cart_items,
-        'subtotal': subtotal,
-        'shipping': shipping,
-        'total': total,
-        'cart_count': get_cart_count(request),
-        'username': request.session.get('username'),
-        'profile_picture': request.session.get('profile_picture'),
-    })
+    def get(self, request, *args, **kwargs):
+        # Handle clear cart
+        if request.GET.get('clear') == 'true':
+            request.session['cart'] = {}
+            request.session.modified = True
+            return redirect('cart')
+            
+        # Handle remove item
+        if request.GET.get('remove_sku'):
+            sku_to_remove = request.GET.get('remove_sku')
+            cart = request.session.get('cart', {})
+            if sku_to_remove in cart:
+                del cart[sku_to_remove]
+                request.session['cart'] = cart
+                request.session.modified = True
+            return redirect('cart')
+        
+        # Handle quantity update
+        if request.GET.get('update_sku') and request.GET.get('action'):
+            sku_to_update = request.GET.get('update_sku')
+            action = request.GET.get('action')
+            cart = request.session.get('cart', {})
+            
+            if sku_to_update in cart:
+                if action == 'increase':
+                    cart[sku_to_update]['quantity'] += 1
+                elif action == 'decrease':
+                    cart[sku_to_update]['quantity'] -= 1
+                    # Remove item if quantity becomes 0
+                    if cart[sku_to_update]['quantity'] <= 0:
+                        del cart[sku_to_update]
+                
+                request.session['cart'] = cart
+                request.session.modified = True
+            return redirect('cart')
+        
+        cart = request.session.get('cart', {})
+        cart_items = []
+        subtotal = 0
+        
+        currency_context = get_currency_context(request)
+
+        for sku, item_data in cart.items():
+            # Convert unit price to selected currency
+            converted_unit_price = convert_cart_prices(item_data['unit_price'], currency_context['currency_info'])
+            item_total = converted_unit_price * item_data['quantity']
+            cart_items.append({
+                'sku': sku,
+                'product_name': item_data['product_name'],
+                'unit_price': converted_unit_price,
+                'quantity': item_data['quantity'],
+                'total': item_total,
+                'product_image': item_data.get('product_image')
+            })
+            subtotal += item_total
+        
+        # Convert shipping and total to selected currency
+        shipping_base = 5.00 if subtotal > 0 else 0
+        shipping = convert_cart_prices(shipping_base, currency_context['currency_info']) if shipping_base > 0 else 0
+        total = subtotal + shipping
+        
+        
+        context = {
+            'cart_items': cart_items,
+            'subtotal': subtotal,
+            'shipping': shipping,
+            'total': total,
+            'cart_count': get_cart_count(request),
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+        }
+        context.update(currency_context)
+        
+        return render(request, self.template_name, context)
 
 def checkout_page(request):
     """Checkout page - placeholder for now"""

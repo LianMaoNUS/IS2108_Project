@@ -3,26 +3,20 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>AuroraMart - Homepage</title>
 
     {% load static %}
 
-    <link rel="stylesheet" href="{% static 'customer_website/css/mainpage.css' %}">
+    <link rel="stylesheet" href="{% static 'customer_website/css/main_page.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
 </head>
 
 <body>
 
-
-
     <nav class="navbar">
-
         <a href="{% url 'customer_home' %}" class="logo">
             <div class="logo-container">
                 <div class="logo-circle">
@@ -32,18 +26,11 @@
         </a>
 
         <div class="nav-links">
-
             <a class="nav-link" href="#">Browse</a>
-
-            <a class ="nav-link" ="#">About</a>
-
+            <a class="nav-link" href="#">About</a>
             <a href="#" class="nav-profile-link">
-
-                <img src="{{ profile_picture }}" alt="Profile"
-                    class="nav-profile-pic">
-
+                <img src="{{ profile_picture }}" alt="Profile" class="nav-profile-pic">
             </a>
-
             <a href="{% url 'cart' %}" class="nav-icon cart-icon">
                 <i class="fa-solid fa-cart-shopping"></i>
                 {% if cart_count > 0 %}
@@ -65,27 +52,28 @@
 
     </nav>
 
-
-
     <header class="hero">
         <div class="hero-slideshow">
-            <div class="hero-slide active" style="background-image: url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
+            <div class="hero-slide active"
+                style="background-image: url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
                 <div class="hero-content">
                     <h2>Welcome back, {{username}}!</h2>
                     <p>We got some products we hope you'll like today!</p>
                     <a href="#recommendations" class="btn btn-primary">See recommendations</a>
                 </div>
             </div>
-            
-            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1472851294608-062f824d29cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
+
+            <div class="hero-slide"
+                style="background-image: url('https://images.unsplash.com/photo-1472851294608-062f824d29cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
                 <div class="hero-content">
                     <h2>Discover Amazing Products</h2>
                     <p>Explore our curated collection of premium items</p>
                     <a href="#recommendations" class="btn btn-primary">Shop Now</a>
                 </div>
             </div>
-            
-            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2340&q=80');">
+
+            <div class="hero-slide"
+                style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2340&q=80');">
                 <div class="hero-content">
                     <h2>Special Offers</h2>
                     <p>Don't miss out on our limited-time deals</p>
@@ -93,7 +81,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Slideshow Navigation -->
         <div class="hero-nav">
             <button class="hero-nav-btn prev" onclick="changeSlide(-1)">
@@ -103,7 +91,7 @@
                 <i class="fas fa-chevron-right"></i>
             </button>
         </div>
-        
+
         <!-- Slideshow Indicators -->
         <div class="hero-indicators">
             <span class="indicator active" onclick="currentSlide(1)"></span>
@@ -115,21 +103,13 @@
 
 
     <main>
-
         <section id="top-products" class="product-section">
-
             <div class="section-header">
-
                 <h2>Top Products</h2>
-
                 <div class="nav-arrows">
-
                     <span class="arrow" id="scroll-left-top">&lt;</span>
-
                     <span class="arrow" id="scroll-right-top">&gt;</span>
-
                 </div>
-
             </div>
 
             <div class="product-grid-horizontal" id="top-product-grid">
@@ -141,14 +121,14 @@
                     <div class="product-image-placeholder">
                         <img src="{{ product.image_url }}" alt="{{ product.product_name }}" class="product-image">
                     </div>
-                    
+
                     <div class="product-content">
                         <div class="product-info">
                             <h3>{{ product.product_name }}</h3>
                             <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
                             <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
                         </div>
-                        <a href="{% url 'product_detail' product.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
+                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
                     </div>
 
                 </div>
@@ -184,14 +164,14 @@
                     <div class="product-image-placeholder">
                         <img src="{{ product.image_url }}" alt="{{ product.product_name }}" class="product-image">
                     </div>
-                    
+
                     <div class="product-content">
                         <div class="product-info">
                             <h3>{{ product.product_name }}</h3>
                             <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
                             <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
                         </div>
-                        <a href="{% url 'product_detail' product.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
+                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
                     </div>
 
                 </div>
@@ -312,6 +292,6 @@
     </footer>
 
 </body>
-    <script src="{% static 'customer_website/script/main_page.js' %}"></script>
+<script src="{% static 'customer_website/script/main_page.js' %}"></script>
 
 </html>
