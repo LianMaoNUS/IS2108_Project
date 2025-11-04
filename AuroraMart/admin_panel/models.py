@@ -27,16 +27,38 @@ class Admin(User):
 class Category(models.Model):
     category_id = models.CharField(max_length=20, primary_key=True, unique=True)
     name = models.CharField(max_length=255, unique=True)
-    is_subcategory = models.BooleanField(default=False)
+    parent_category = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='subcategories',
+        help_text='Leave blank for main categories, select a parent for subcategories'
+    )
 
     def __str__(self):
+        if self.parent_category:
+            return f"{self.parent_category.name} > {self.name}"
         return self.name
     
     def save(self,*args, **kwargs):
         if not self.category_id:
-            print("hhhh")
             self.category_id = "CAT-" + str(uuid.uuid4())
         return super().save(*args, **kwargs)
+    
+    def is_main_category(self):
+        """Returns True if this is a main category (no parent)"""
+        return self.parent_category is None
+    
+    def is_subcategory(self):
+        """Returns True if this is a subcategory (has parent)"""
+        return self.parent_category is not None
+    
+    def get_main_category(self):
+        """Returns the main category (root) for this category"""
+        if self.parent_category:
+            return self.parent_category.get_main_category()
+        return self
     
     class Meta:
         # Ensures plural form is "Categories" in the admin panel
@@ -55,8 +77,22 @@ class Product(models.Model):
         default='https://cdn.mmem.com.au/media/catalog/product/placeholder/default/product-image.jpg',
         help_text='Product image URL'
     )   
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    subcategory = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_products')
+    category = models.ForeignKey(
+        Category, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='products',
+        help_text='Can be assigned to either main category or subcategory'
+    )
+    subcategory = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subcategory_products',
+        help_text='Select a subcategory if applicable'
+    )
 
     def __str__(self):
         return self.product_name

@@ -9,6 +9,7 @@ from django.contrib.auth.hashers import check_password
 from django.urls import reverse
 from django.views import View
 from django.db.models import Sum, F
+from django.http import JsonResponse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from .forms import AdminLoginForm, AdminSignupForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
@@ -90,8 +91,15 @@ class dashboardview(View):
         },
         'products': {
             'model': Product, 'form': ProductForm, 'title': 'Products',
-            'fields': ["sku", "product_name", "category", "unit_price", "quantity_on_hand"],
-            'rows': lambda item: [item.sku, item.product_name, item.category, f"${item.unit_price}", item.quantity_on_hand]
+            'fields': ["sku", "product_name", "category", "subcategory", "unit_price", "quantity_on_hand"],
+            'rows': lambda item: [
+                item.sku, 
+                item.product_name, 
+                item.category.name if item.category else '', 
+                item.subcategory.name if item.subcategory else '', 
+                f"${item.unit_price}", 
+                item.quantity_on_hand
+            ]
         },
         'customers': {
             'model': Customer, 'form': CustomerForm, 'title': 'Customers',
@@ -105,8 +113,8 @@ class dashboardview(View):
         },
         'categories': {
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
-            'fields': ["category_id", "name", "is_subcategory"],
-            'rows': lambda item: [item.category_id, item.name, item.is_subcategory]
+            'fields': ["category_id", "name","parent_category"],
+            'rows': lambda item: [item.category_id, item.name, item.parent_category.name if item.parent_category else '']
         },
         'orderitem': {
             'model': OrderItem, 'form': OrderItemForm, 'title': 'Order Items',
@@ -365,3 +373,20 @@ class dashboardview(View):
                 admin_details=admin_update 
             )
             return render(request, self.template_name, context)
+
+def get_subcategories(request):
+    category_id = request.GET.get('category_id')
+    subcategories = []
+    
+    if category_id:
+        try:
+            main_category = Category.objects.get(pk=category_id)
+            subcategories_qs = Category.objects.filter(parent_category=main_category)
+            subcategories = [
+                {'id': subcat.category_id, 'name': subcat.name} 
+                for subcat in subcategories_qs
+            ]
+        except Category.DoesNotExist:
+            pass
+    
+    return JsonResponse({'subcategories': subcategories})

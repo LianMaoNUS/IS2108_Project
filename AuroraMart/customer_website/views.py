@@ -10,6 +10,7 @@ from django.contrib.auth.hashers import check_password
 import pandas as pd
 import joblib
 import os
+from decimal import Decimal
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -52,15 +53,60 @@ def predict_preferred_category(customer_data):
 
     return prediction
 
+def get_recommendations( items, metric='confidence', top_n=5):
+    model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
+    loaded_rules = joblib.load(model_path)
+    recommendations = set()
+    for item in items:
+
+        # Find rules where the item is in the antecedents
+        matched_rules = loaded_rules[loaded_rules['antecedents'].apply(lambda x: item in x)]
+        # Sort by the specified metric and get the top N
+        top_rules = matched_rules.sort_values(by=metric, ascending=False).head(top_n)
+
+        for _, row in top_rules.iterrows():
+
+            recommendations.update(row['consequents'])
+
+    # Remove items that are already in the input list
+    recommendations.difference_update(items)
+    
+    return list(recommendations)[:top_n]
+
 def main_page(request):
     if request.GET.get('logout') == 'true':
         request.session.flush()
         return redirect('login')
+    
+    # Get selected currency from URL parameter
+    selected_currency = request.GET.get('currency', 'SGD')
+    
+    # Currency conversion rates (base: SGD)
+    currency_rates = {
+        'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
+        'USD': {'rate': Decimal('0.74'), 'symbol': '$'},
+        'EUR': {'rate': Decimal('0.68'), 'symbol': '€'},
+        'JPY': {'rate': Decimal('110.5'), 'symbol': '¥'},
+        'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
+    }
+    
+    # Get currency info
+    currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
+    
     categories = Category.objects.all()[:6]  # Show first 6 categories
     featured_products = Product.objects.all()[:8]  # Show first 8 products
+    
+    # Convert prices for each product
+    for product in featured_products:
+        converted_price = product.unit_price * currency_info['rate']
+        product.converted_price = converted_price.quantize(Decimal('0.01'))
+    
     return render(request, 'customer_website/main_page.html', {
         'categories': categories,
-        'featured_products': featured_products
+        'featured_products': featured_products,
+        'selected_currency': selected_currency,
+        'currency_symbol': currency_info['symbol'],
+        'currency_rates': currency_rates
     })
 
 class loginview(View):
@@ -188,21 +234,41 @@ class new_userview(View):
                 "form": form, 
                 "error_message": error_check(form.errors.values())
             })  
+        
+class mainpageview(View):
+    template_name = 'customer_website/main_page.html'
 
-def customer_home(request):
-    """Dashboard after login"""
+    def get(self, request, *args, **kwargs):
+        if request.GET.get('logout') == 'true':
+            request.session.flush()
+            return redirect('login')
+        user = Customer.objects.get(username=request.session.get('username'))
+        main_category = Category.objects.filter(name=user.preferred_category)
+        more_categories = Category.objects.exclude(name=user.preferred_category)[:5]
+        products = Product.objects.filter(category__in=main_category).distinct()[:12]
+        selected_currency = request.GET.get('currency', 'SGD')
+        currency_rates = {
+            'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
+            'USD': {'rate': Decimal('0.74'), 'symbol': '$'},
+            'EUR': {'rate': Decimal('0.68'), 'symbol': '€'},
+            'JPY': {'rate': Decimal('110.5'), 'symbol': '¥'},
+            'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
+        }
+        currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
 
-    if request.GET.get('logout') == 'true':
-        request.session.flush()
-        return redirect('login')
-    
-    categories = Category.objects.all()
-    products = Product.objects.all()[:12]
-    return render(request, 'customer_website/main_page.html', {
-            'categories': categories,
+        for product in products:
+            converted_price = product.unit_price * currency_info['rate'] 
+            product.unit_price = converted_price.quantize(Decimal('0.01'))
+
+        return render(request, self.template_name, {
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+            'main_category': main_category,
+            'more_categories': more_categories,
             'products': products,
-    })
-
+            'selected_currency': selected_currency,
+            'currency_symbol': currency_info['symbol'],
+        })
 
 
 def cart_page(request):

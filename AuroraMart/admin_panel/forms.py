@@ -88,7 +88,56 @@ class AdminSignupForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category', 'subcategory']
+        fields = ['sku','product_name', 'description', 'unit_price', 'product_rating', 'quantity_on_hand', 'reorder_quantity', 'category','subcategory']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.fields['category'].queryset = Category.objects.filter(parent_category__isnull=True)
+        self.fields['category'].empty_label = "Select a main category"
+        self.fields['category'].widget.attrs.update({
+            'id': 'id_category',
+            'class': 'form-control category-selector'
+        })
+
+        if self.data and self.data.get('category'):
+            try:
+                category_id = self.data.get('category')
+                selected_category = Category.objects.get(pk=category_id)
+                self.fields['subcategory'].queryset = Category.objects.filter(parent_category=selected_category)
+            except (ValueError, Category.DoesNotExist):
+                self.fields['subcategory'].queryset = Category.objects.none()
+        elif self.instance.pk and self.instance.category:
+            self.fields['subcategory'].queryset = Category.objects.filter(
+                parent_category=self.instance.category
+            )
+        else:
+            self.fields['subcategory'].queryset = Category.objects.none()
+        
+        self.fields['subcategory'].empty_label = "Select a subcategory (optional)"
+        self.fields['subcategory'].widget.attrs.update({
+            'id': 'id_subcategory',
+            'class': 'form-control subcategory-selector'
+        })
+        
+        # Override the label_from_instance for subcategory to show only the name
+        self.fields['subcategory'].label_from_instance = lambda obj: obj.name if obj else ""
+    
+    def clean_subcategory(self):
+        """Custom validation for subcategory field"""
+        category = self.cleaned_data.get('category')
+        subcategory = self.cleaned_data.get('subcategory')
+        
+        if subcategory:
+            # Validate that the subcategory belongs to the selected category
+            if category and subcategory.parent_category != category:
+                raise forms.ValidationError("Selected subcategory must belong to the selected main category.")
+            
+            # Validate that the subcategory is indeed a subcategory (has a parent)
+            if not subcategory.parent_category:
+                raise forms.ValidationError("Selected option is not a valid subcategory.")
+        
+        return subcategory
 
 class CustomerForm(forms.ModelForm):
     class Meta:
@@ -104,7 +153,13 @@ class OrderForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ['name','is_subcategory']
+        fields = ['name','parent_category']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter parent_category to only show main categories (where parent_category is null)
+        self.fields['parent_category'].queryset = Category.objects.filter(parent_category__isnull=True)
+        self.fields['parent_category'].empty_label = "Select a main category (leave blank for main category)"
 
 class OrderItemForm(forms.ModelForm):
     class Meta:

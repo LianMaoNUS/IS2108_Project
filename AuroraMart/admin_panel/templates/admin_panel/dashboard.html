@@ -337,6 +337,43 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Dynamic subcategory dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const categorySelect = document.getElementById('id_category');
+            const subcategorySelect = document.getElementById('id_subcategory');
+            
+            if (categorySelect && subcategorySelect) {
+                categorySelect.addEventListener('change', function() {
+                    const categoryId = this.value;
+                    subcategorySelect.innerHTML = '<option value="">Select a subcategory (optional)</option>';
+                    
+                    if (categoryId) {
+                        fetch(`{% url 'get_subcategories' %}?category_id=${categoryId}`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                data.subcategories.forEach(function(subcategory) {
+                                    const option = document.createElement('option');
+                                    option.value = subcategory.id;
+                                    option.textContent = subcategory.name;
+                                    subcategorySelect.appendChild(option);
+                                });
+                            })
+                            .catch(error => {
+                                console.error('Error fetching subcategories:', error);
+                                subcategorySelect.innerHTML = '<option value="">Error loading subcategories</option>';
+                            });
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 
 </html>

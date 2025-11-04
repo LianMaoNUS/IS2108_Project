@@ -1,63 +1,265 @@
 <!DOCTYPE html>
-<html>
+
+<html lang="en">
+
 <head>
-    <title>AuroraMart - Everyday Quality Without Luxury Markup</title>
-    <style>
-        .navbar { background: #f8f9fa; padding: 1rem; }
-        .hero { background: #007bff; color: white; padding: 3rem; text-align: center; }
-        .product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 2rem; }
-        .product-card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; }
-    </style>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AuroraMart - Homepage</title>
+
+    {% load static %}
+
+    <link rel="stylesheet" href="{% static 'customer_website/css/mainpage.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
 </head>
+
 <body>
+
+
+
     <nav class="navbar">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1>🛍️ AuroraMart</h1>
-            <div>
-                <a href="{% url 'main_page' %}">Home</a>
-                <a href="{% url 'login' %}">Login</a>
-                <a href="{% url 'signup' %}">Sign Up</a>
-                <a href="{% url 'main_page' %}?logout=true">Log Out</a>
+
+        <a href="{% url 'customer_home' %}" class="logo">
+            <div class="logo-container">
+                <div class="logo-circle">
+                    <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
+                </div>
             </div>
+        </a>
+
+        <div class="nav-links">
+
+            <a href="#">Browse</a>
+
+            <a href="#">About</a>
+
+            <a href="#" class="nav-profile-link">
+
+                <img src="{{ profile_picture }}" alt="Profile"
+                    class="nav-profile-pic">
+
+            </a>
+
+            <a href="#" class="nav-icon"><i class="fa-solid fa-cart-shopping"></i></a>
+
+            <div class="currency-selector">
+                <select class="currency-dropdown" id="currency-selector">
+                    <option value="SGD" {% if selected_currency == 'SGD' %}selected{% endif %}>SGD S$</option>
+                    <option value="USD" {% if selected_currency == 'USD' %}selected{% endif %}>USD $</option>
+                    <option value="EUR" {% if selected_currency == 'EUR' %}selected{% endif %}>EUR €</option>
+                    <option value="JPY" {% if selected_currency == 'JPY' %}selected{% endif %}>JPY ¥</option>
+                    <option value="GBP" {% if selected_currency == 'GBP' %}selected{% endif %}>GBP £</option>
+                </select>
+            </div>
+
         </div>
+
     </nav>
 
-    <div class="hero">
-        <h2>Welcome to AuroraMart</h2>
-        <p>Everyday quality without the luxury markup</p>
-        <div>
-            <a href="{% url 'signup' %}" style="background: white; color: #007bff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Get Started</a>
-            <a href="#products" style="border: 2px solid white; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-left: 10px;">Shop Now</a>
-        </div>
-    </div>
 
-    <section style="padding: 2rem;">
-        <h2>Popular Categories</h2>
-        <div style="display: flex; gap: 1rem; overflow-x: auto; padding: 1rem 0;">
-            {% for category in categories %}
-            <div style="border: 1px solid #ddd; padding: 1rem; border-radius: 8px; min-width: 150px; text-align: center;">
-                <h3>{{ category.name }}</h3>
+
+    <header class="hero">
+        <div class="hero-slideshow">
+            <div class="hero-slide active" style="background-image: url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
+                <div class="hero-content">
+                    <h2>Welcome back, {{username}}!</h2>
+                    <p>We got some products we hope you'll like today!</p>
+                    <a href="#recommendations" class="btn btn-primary">See recommendations</a>
+                </div>
             </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section id="products" style="padding: 2rem;">
-        <h2>Featured Products</h2>
-        <div class="product-grid">
-            {% for product in featured_products %}
-            <div class="product-card">
-                <h3>{{ product.product_name }}</h3>
-                <p>{{ product.description|truncatewords:10 }}</p>
-                <p><strong>${{ product.unit_price }}</strong></p>
-                <button style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px;">View Details</button>
+            
+            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1472851294608-062f824d29cc?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');">
+                <div class="hero-content">
+                    <h2>Discover Amazing Products</h2>
+                    <p>Explore our curated collection of premium items</p>
+                    <a href="#recommendations" class="btn btn-primary">Shop Now</a>
+                </div>
             </div>
-            {% endfor %}
+            
+            <div class="hero-slide" style="background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2340&q=80');">
+                <div class="hero-content">
+                    <h2>Special Offers</h2>
+                    <p>Don't miss out on our limited-time deals</p>
+                    <a href="#recommendations" class="btn btn-primary">View Deals</a>
+                </div>
+            </div>
         </div>
-    </section>
+        
+        <!-- Slideshow Navigation -->
+        <div class="hero-nav">
+            <button class="hero-nav-btn prev" onclick="changeSlide(-1)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="hero-nav-btn next" onclick="changeSlide(1)">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        
+        <!-- Slideshow Indicators -->
+        <div class="hero-indicators">
+            <span class="indicator active" onclick="currentSlide(1)"></span>
+            <span class="indicator" onclick="currentSlide(2)"></span>
+            <span class="indicator" onclick="currentSlide(3)"></span>
+        </div>
+    </header>
 
-    <footer style="text-align: center; padding: 2rem; background: #f8f9fa; margin-top: 2rem;">
-        <p>&copy; 2025 AuroraMart. Everyday quality without luxury markup.</p>
+
+
+    <main>
+
+        <section id="recommendations" class="product-section">
+
+            <div class="section-header">
+
+                <h2>Recommended for you</h2>
+
+                <div class="nav-arrows">
+
+                    <span class="arrow">&lt;</span>
+
+                    <span class="arrow">&gt;</span>
+
+                </div>
+
+            </div>
+
+            <div class="product-grid-horizontal">
+
+                {% for product in products %}
+
+                <div class="product-card">
+
+                    <div class="product-image-placeholder"></div>
+                    <h3>{{ product.product_name }}</h3>
+
+                    <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
+
+                    <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
+
+                    <button class="btn btn-secondary">View</button>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+
+        <section class="category-section">
+
+            <h2>Browse categories</h2>
+
+            <div class="category-grid">
+
+                {% for category in main_category %}
+
+                <div class="category-card">
+
+                    <div class="category-image-placeholder"></div>
+
+                    <h3>{{ category.name }}</h3>
+
+                </div>
+
+                {% endfor %}
+
+                {% for category in more_categories %}
+
+                <div class="category-card">
+
+                    <div class="category-image-placeholder"></div>
+
+                    <h3>{{ category.name }}</h3>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <footer>
+
+        <div class="footer-main">
+
+            <div class="footer-col-logo">
+
+                <div class="footer-logo">
+                    <div class="logo-circle footer-logo-circle">
+                        <span class="logo-text">AM</span>
+                    </div>
+                    <span class="logo-name">AuroraMart</span>
+                </div>
+
+                <div class="social-icons">
+
+                    <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
+
+                    <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+
+                </div>
+
+            </div>
+
+            <div class="footer-col-links">
+
+                <h3>Help</h3>
+
+                <ul>
+
+                    <li><a href="#">FAQ</a></li>
+
+                    <li><a href="#">Customer service</a></li>
+
+                    <li><a href="#">How to guides</a></li>
+
+                    <li><a href="#">Contact us</a></li>
+
+                </ul>
+
+            </div>
+
+            <div class="footer-col-links">
+
+                <h3>Other</h3>
+
+                <ul>
+
+                    <li><a href="#">Privacy Policy</a></li>
+
+                    <li><a href="#">About us</a></li>
+
+                    <li><a href="#">Subscriptions</a></li>
+
+                </ul>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="footer-bottom">
+
+            <p>&copy; 2025 AuroraMart. Everyday quality without luxury markup.</p>
+
+        </div>
+
     </footer>
+
 </body>
+    <script src="{% static 'customer_website/script/main_page.js' %}"></script>
+
 </html>

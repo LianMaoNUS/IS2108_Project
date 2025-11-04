@@ -97,26 +97,42 @@ def populate_products():
             print(row.get('\ufeffsku'))
             try:
                 category = None
+                subcategory = None
+                
+                # Handle main category
                 if row.get('Product Category'):
-                    if not Category.objects.filter(name=row.get('Product Category')).exists():
-                        category = Category.objects.create(name=row.get('Product Category').strip(),is_subcategory=False)
-                        print(f"Created category: {category.name}")
+                    category_name = row.get('Product Category').strip()
+                    # Check if main category exists, if not create it
+                    category, created = Category.objects.get_or_create(
+                        name=category_name,
+                        defaults={'parent_category': None}  # Main category has no parent
+                    )
+                    if created:
+                        print(f"Created main category: {category.name}")
                     else:
-                        category = Category.objects.get(name=row.get('Product Category').strip())
-                    if not Category.objects.filter(name=row.get('Product Subcategory')).exists():
-                        subcategory = Category.objects.create(name=row.get('Product Subcategory').strip(), is_subcategory=True)
+                        print(f"Using existing main category: {category.name}")
+                
+                # Handle subcategory
+                if row.get('Product Subcategory') and category:
+                    subcategory_name = row.get('Product Subcategory').strip()
+                    # Check if subcategory exists, if not create it
+                    subcategory, created = Category.objects.get_or_create(
+                        name=subcategory_name,
+                        defaults={'parent_category': category}  # Subcategory has parent
+                    )
+                    if created:
                         print(f"Created subcategory: {subcategory.name} under {category.name}")
                     else:
-                        subcategory = Category.objects.get(name=row.get('Product Subcategory').strip())
+                        print(f"Using existing subcategory: {subcategory.name}")
 
                 # Use subcategory if available, otherwise use main category
-                product_category = subcategory if subcategory else category
+                product_category = category
 
                 product = Product.objects.create(
                     sku=row.get('\ufeffsku'),
                     product_name=row.get('Product name', ''),
-                    category=product_category,
-                    subcategory=subcategory if 'subcategory' in locals() else None,
+                    category=product_category,  # Single category field now
+                    subcategory=subcategory,
                     unit_price=Decimal(row.get('Unit price', '0')) if row.get('Unit price') else Decimal('0'),
                     quantity_on_hand=int(row.get('Quantity on hand', 0)) if row.get('Quantity on hand') else 0,
                     reorder_quantity=int(row.get('Reorder Quantity', 10)) if row.get('Reorder Quantity') else 10,
@@ -125,7 +141,7 @@ def populate_products():
                 )
                 if product:
                     products_created += 1
-                    print(f"Created product: {product.product_name}")
+                    print(f"Created product: {product.product_name} in category: {product_category}")
                 else:
                     print(f"Product already exists: {product.product_name}")
                     
@@ -141,10 +157,10 @@ def main():
 
     
     print("\n2. Populating Products...")
-    #populate_products()
+    populate_products()
     
     print("\n3. Populating Customers...")
-    populate_customers()
+    #populate_customers()
     
     print("\n" + "=" * 50)
     print("Data population completed!")

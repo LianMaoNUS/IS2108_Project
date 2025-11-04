@@ -24,10 +24,8 @@
         <form method="post" class="login-form">
             {% csrf_token %}
             
-            <!-- Hidden username field for form submission -->
             {{ form.username }}
             
-            <!-- Display username to user -->
             {% if form.username.value %}
             <div class="username-display" style="margin-bottom: 1.5rem; padding: 12px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; text-align: left;">
                 <label style="font-weight: 500; color: #333; font-size: 0.9rem; margin-bottom: 5px; display: block;">Username</label>
