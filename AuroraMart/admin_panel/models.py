@@ -76,7 +76,7 @@ class Product(models.Model):
         max_length=500,
         default='https://cdn.mmem.com.au/media/catalog/product/placeholder/default/product-image.jpg',
         help_text='Product image URL'
-    )   
+    )
     category = models.ForeignKey(
         Category, 
         on_delete=models.SET_NULL, 

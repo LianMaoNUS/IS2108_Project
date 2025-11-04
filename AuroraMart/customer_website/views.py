@@ -16,6 +16,27 @@ def error_check(check):
     return [msg for err_list in check for msg in err_list]
 
 
+def get_currency_context(request):
+    selected_currency = request.GET.get('currency', 'SGD')
+    
+    currency_rates = {
+        'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
+        'USD': {'rate': Decimal('0.74'), 'symbol': '$'},
+        'EUR': {'rate': Decimal('0.68'), 'symbol': '€'},
+        'JPY': {'rate': Decimal('110.5'), 'symbol': '¥'},
+        'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
+    }
+    
+    currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
+    
+    return {
+        'selected_currency': selected_currency,
+        'currency_info': currency_info,
+        'currency_symbol': currency_info['symbol'],
+        'currency_rates': currency_rates
+    }
+
+
 def convert_product_prices(products, currency_info):
     for product in products:
         converted_price = product.unit_price * currency_info['rate']
@@ -23,8 +44,12 @@ def convert_product_prices(products, currency_info):
     return products
 
 
+def get_cart_count(request):
+    cart = request.session.get('cart', {})
+    return len(cart)
+
+model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
 def predict_preferred_category(customer_data):
-    model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
     loaded_model = joblib.load(model_path)
     columns = {
         'age':'int64', 'household_size':'int64', 'has_children':'int64', 'monthly_income_sgd':'float64',
@@ -60,59 +85,22 @@ def predict_preferred_category(customer_data):
 
     return prediction
 
-def get_recommendations( items, metric='confidence', top_n=5):
-    model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
-    loaded_rules = joblib.load(model_path)
-    recommendations = set()
-    for item in items:
-
-        # Find rules where the item is in the antecedents
-        matched_rules = loaded_rules[loaded_rules['antecedents'].apply(lambda x: item in x)]
-        # Sort by the specified metric and get the top N
-        top_rules = matched_rules.sort_values(by=metric, ascending=False).head(top_n)
-
-        for _, row in top_rules.iterrows():
-
-            recommendations.update(row['consequents'])
-
-    # Remove items that are already in the input list
-    recommendations.difference_update(items)
+loaded_rules = joblib.load(os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_products_500_transactions_50k.joblib'))
+def get_recommendations(items, metric='confidence', top_n=5):
+    mask = loaded_rules['antecedents'].apply(lambda x: any(item in x for item in items))
+    relevant_rules = loaded_rules[mask]
+    if len(relevant_rules) == 0:
+        return []
     
+    sorted_rules = relevant_rules.sort_values(by=metric, ascending=False)
+    
+    recommendations = set()
+    for _, row in sorted_rules.head(top_n * 3).iterrows(): 
+        recommendations.update(row['consequents'])
+    
+    recommendations.difference_update(items)
     return list(recommendations)[:top_n]
 
-def main_page(request):
-    if request.GET.get('logout') == 'true':
-        request.session.flush()
-        return redirect('login')
-    
-    # Get selected currency from URL parameter
-    selected_currency = request.GET.get('currency', 'SGD')
-    
-    # Currency conversion rates (base: SGD)
-    currency_rates = {
-        'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
-        'USD': {'rate': Decimal('0.74'), 'symbol': '$'},
-        'EUR': {'rate': Decimal('0.68'), 'symbol': '€'},
-        'JPY': {'rate': Decimal('110.5'), 'symbol': '¥'},
-        'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
-    }
-    
-    # Get currency info
-    currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
-    
-    categories = Category.objects.all()[:6]  # Show first 6 categories
-    featured_products = Product.objects.all()[:8]  # Show first 8 products
-    
-    # Convert prices for each product
-    convert_product_prices(featured_products, currency_info)
-    
-    return render(request, 'customer_website/main_page.html', {
-        'categories': categories,
-        'featured_products': featured_products,
-        'selected_currency': selected_currency,
-        'currency_symbol': currency_info['symbol'],
-        'currency_rates': currency_rates
-    })
 
 class loginview(View):
     form_class = CustomerLoginForm
@@ -247,43 +235,139 @@ class mainpageview(View):
         if request.GET.get('logout') == 'true':
             request.session.flush()
             return redirect('login')
+            
         user = Customer.objects.get(username=request.session.get('username'))
         main_category = Category.objects.filter(name=user.preferred_category)
+        request.session['preferred_category'] = user.preferred_category
         more_categories = Category.objects.exclude(name=user.preferred_category)[:5]
         products = Product.objects.filter(category__in=main_category).distinct()[:12]
-        selected_currency = request.GET.get('currency', 'SGD')
-        currency_rates = {
-            'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
-            'USD': {'rate': Decimal('0.74'), 'symbol': '$'},
-            'EUR': {'rate': Decimal('0.68'), 'symbol': '€'},
-            'JPY': {'rate': Decimal('110.5'), 'symbol': '¥'},
-            'GBP': {'rate': Decimal('0.58'), 'symbol': '£'}
-        }
-        currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
         top_products = Product.objects.order_by('-reorder_quantity')[:10]
+        currency_context = get_currency_context(request)
+        convert_product_prices(products, currency_context['currency_info'])
+        convert_product_prices(top_products, currency_context['currency_info'])
 
-        convert_product_prices(products, currency_info)
-        convert_product_prices(top_products, currency_info)
-
-        return render(request, self.template_name, {
+        context = {
             'username': request.session.get('username'),
             'profile_picture': request.session.get('profile_picture'),
             'main_category': main_category,
             'more_categories': more_categories,
             'products': products,
-            'selected_currency': selected_currency,
-            'currency_symbol': currency_info['symbol'],
             'top_products': top_products,
-        })
+            'cart_count': get_cart_count(request),
+        }
+        context.update(currency_context)
+
+        return render(request, self.template_name, context)
+    
+class product_detailview(View):
+    template_name = 'customer_website/product_detail.html'
+
+    def get(self, request, sku, *args, **kwargs):
+        try:     
+            product = Product.objects.get(sku=sku)
+            currency_context = get_currency_context(request)
+            
+            if request.GET.get('added') == 'true':
+                quantity = int(request.GET.get('quantity', 1))
+                
+                if 'cart' not in request.session:
+                    request.session['cart'] = {}
+                
+                # Add or update item in cart
+                cart = request.session['cart']
+                if sku in cart:
+                    cart[sku]['quantity'] += quantity
+                else:
+                    cart[sku] = {
+                        'product_name': product.product_name,
+                        'unit_price': float(product.unit_price),
+                        'quantity': quantity,
+                        'product_image': product.product_image if product.product_image else None
+                    }
+                
+                request.session['cart'] = cart
+                request.session.modified = True
+                
+                currency = request.GET.get('currency', 'SGD')
+                return redirect(f"{request.path}?currency={currency}&cart_added=true")
+            
+            recommended_products_sku = get_recommendations([sku], top_n=4)
+            recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
+            
+            if not recommended_products.exists():
+                preferred_category = request.session.get('preferred_category', None)
+                recommended_products = Product.objects.filter(
+                    category__name=preferred_category
+                ).exclude(sku=sku)[:4]
+
+            convert_product_prices([product] + list(recommended_products), currency_context['currency_info'])
+            
+            cart = request.session.get('cart', {})
+            is_in_cart = sku in cart
+            
+            cart_added = request.GET.get('cart_added') == 'true' or is_in_cart
+         
+            context = {
+                'product': product,
+                'recommended_products': recommended_products,
+                'username': request.session.get('username'),
+                'profile_picture': request.session.get('profile_picture'),
+                'cart_count': get_cart_count(request),
+                'cart_added': cart_added,
+            }
+            context.update(currency_context)
+            
+            return render(request, self.template_name, context)
+        except Product.DoesNotExist:
+            currency_context = get_currency_context(request)
+            context = {
+                'product': None,  
+                'recommended_products': [],
+                'username': request.session.get('username'),
+                'profile_picture': request.session.get('profile_picture'),
+                'cart_count': get_cart_count(request),
+            }
+            context.update(currency_context)
+            
+            return render(request, self.template_name, context)
 
 
 def cart_page(request):
-    """Shopping cart page - placeholder for now"""
+    """Shopping cart page"""
+    # Handle clear cart action
+    if request.GET.get('clear') == 'true':
+        request.session['cart'] = {}
+        request.session.modified = True
+        return redirect('cart')  # Redirect to clean URL
+    
+    cart = request.session.get('cart', {})
+    cart_items = []
+    subtotal = 0
+    
+    # Convert cart session data to a more usable format
+    for sku, item_data in cart.items():
+        item_total = item_data['unit_price'] * item_data['quantity']
+        cart_items.append({
+            'sku': sku,
+            'product_name': item_data['product_name'],
+            'unit_price': item_data['unit_price'],
+            'quantity': item_data['quantity'],
+            'total': item_total,
+            'product_image': item_data.get('product_image')
+        })
+        subtotal += item_total
+    
+    shipping = 5.00 if subtotal > 0 else 0  # Example shipping cost
+    total = subtotal + shipping
+    
     return render(request, 'customer_website/cart.html', {
-        'cart_items': [],  # Empty for now
-        'subtotal': 0,
-        'shipping': 0,
-        'total': 0
+        'cart_items': cart_items,
+        'subtotal': subtotal,
+        'shipping': shipping,
+        'total': total,
+        'cart_count': get_cart_count(request),
+        'username': request.session.get('username'),
+        'profile_picture': request.session.get('profile_picture'),
     })
 
 def checkout_page(request):
