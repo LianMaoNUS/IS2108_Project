@@ -10,8 +10,10 @@
 
     {% load static %}
 
+    <link rel="stylesheet" href="{% static 'customer_website/css/navbar_footer.css' %}">
     <link rel="stylesheet" href="{% static 'customer_website/css/main_page.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="{% static 'customer_website/script/navbar_search.js' %}"></script>
 </head>
 
 <body>
@@ -24,6 +26,13 @@
                 </div>
             </div>
         </a>
+
+        <div class="nav-search">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="nav-search-input" placeholder="Search products..." class="nav-search-input">
+            </div>
+        </div>
 
         <div class="nav-links">
             <a class="nav-link" href="{% url 'all_products' %}">Browse</a>
@@ -92,7 +101,6 @@
             </button>
         </div>
 
-        <!-- Slideshow Indicators -->
         <div class="hero-indicators">
             <span class="indicator active" onclick="currentSlide(1)"></span>
             <span class="indicator" onclick="currentSlide(2)"></span>

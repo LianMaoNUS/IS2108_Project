@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Products - AuroraMart</title>
     {% load static %}
+    <link rel="stylesheet" href="{% static 'customer_website/css/navbar_footer.css' %}">
     <link rel="stylesheet" href="{% static 'customer_website/css/products.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="{% static 'customer_website/script/products.js' %}"></script>
+    <script src="{% static 'customer_website/script/navbar_search.js' %}"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -18,6 +20,14 @@
                 </div>
             </div>
         </a>
+
+        <!-- Global search bar -->
+        <div class="nav-search">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="nav-search-input" placeholder="Search products..." class="nav-search-input">
+            </div>
+        </div>
 
         <div class="nav-links">
             <a class="nav-link" href="#">Browse</a>
@@ -47,13 +57,13 @@
         <div class="breadcrumb">
             <a href="{% url 'customer_home' %}">Home</a>
             <span class="separator">></span>
-            <span class="current">All Products</span>
+            <span class="current">{{ title_name }}</span>
         </div>
 
         <div class="products-container">
             <div class="products-header">
                 <div class="header-content">
-                    <h1>All Products</h1>
+                    <h1>{{ title_name }}</h1>
                     <p class="products-count">
                         {% if total_products %}
                             {% if is_paginated %}
@@ -68,13 +78,39 @@
                 </div>
                 
                 <div class="controls-section">
-                    <div class="search-container">
-                        <div class="search-input-wrapper">
-                            <i class="fa-solid fa-search"></i>
-                            <input type="text" id="search-input" placeholder="Search products..." class="search-input" value="{{ search_query }}">
+                    <!-- Category Filter Pills -->
+                    <div class="category-filter-container">
+                        <h3 class="filter-title">
+                            <i class="fa-solid fa-filter"></i>
+                            Categories
+                        </h3>
+                        <div class="category-pills">
+                            <a href="?search={{ search_query }}&sort={{ sort_by }}&category=all" 
+                               class="category-pill {% if selected_category == 'all' or selected_category == '' %}active{% endif %}"
+                               data-category="all">
+                                <i class="fa-solid fa-grip"></i>
+                                All Products
+                            </a>
+                            {% for category in main_categories %}
+                                <a href="?search={{ search_query }}&sort={{ sort_by }}&category={{ category.category_id }}" 
+                                   class="category-pill {% if selected_category == category.category_id %}active{% endif %}"
+                                   data-category="{{ category.category_id }}">
+                                    <i class="fa-solid fa-tag"></i>
+                                    {{ category.name }}
+                                </a>
+                            {% endfor %}
                         </div>
                     </div>
-                    
+                </div>
+                
+                <div class="search-container-centered">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="search-input" placeholder="Search products..." class="search-input" value="{{ search_query }}">
+                    </div>
+                </div>
+                
+                <div class="filter-sort-section">
                     <div class="filter-sort-controls">
                         <div class="sort-container">
                             <label for="sort-select">Sort by:</label>

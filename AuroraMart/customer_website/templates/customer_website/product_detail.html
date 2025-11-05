@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ product.product_name }} - AuroraMart</title>
     {% load static %}
+    <link rel="stylesheet" href="{% static 'customer_website/css/navbar_footer.css' %}">
     <link rel="stylesheet" href="{% static 'customer_website/css/product_detail.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="{% static 'customer_website/script/product_detail.js' %}"></script>
+    <script src="{% static 'customer_website/script/navbar_search.js' %}"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -18,6 +20,13 @@
                 </div>
             </div>
         </a>
+
+        <div class="nav-search">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="nav-search-input" placeholder="Search products..." class="nav-search-input">
+            </div>
+        </div>
 
         <div class="nav-links">
             <a href="#">Browse</a>

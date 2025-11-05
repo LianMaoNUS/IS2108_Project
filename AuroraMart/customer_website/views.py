@@ -20,11 +20,11 @@ def error_check(check):
 def get_currency_context(request):
     url_currency = request.GET.get('currency')
     if url_currency:
-        # Save the selected currency to session
         request.session['selected_currency'] = url_currency
         request.session.modified = True
-    
-    selected_currency = request.session.get('selected_currency', 'SGD')
+        selected_currency = url_currency
+    else:
+        selected_currency = request.session.get('selected_currency', 'SGD')
     
     currency_rates = {
         'SGD': {'rate': Decimal('1.0'), 'symbol': 'S$'},
@@ -35,7 +35,6 @@ def get_currency_context(request):
     }
     
     currency_info = currency_rates.get(selected_currency, currency_rates['SGD'])
-    
     return {
         'selected_currency': selected_currency,
         'currency_info': currency_info,
@@ -279,6 +278,7 @@ class product_detailview(View):
             
             if request.GET.get('added') == 'true':
                 quantity = int(request.GET.get('quantity', 1))
+                currency_context = get_currency_context(request)
                 
                 if 'cart' not in request.session:
                     request.session['cart'] = {}
@@ -298,7 +298,12 @@ class product_detailview(View):
                 request.session['cart'] = cart
                 request.session.modified = True
                 
-                return redirect(f"{request.path}?cart_added=true")
+                redirect_url = f"{request.path}?cart_added=true"
+                currency = request.GET.get('currency') or request.session.get('selected_currency')
+                if currency:
+                    redirect_url += f"&currency={currency}"
+                
+                return redirect(redirect_url)
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
@@ -323,6 +328,7 @@ class product_detailview(View):
                 'profile_picture': request.session.get('profile_picture'),
                 'cart_count': get_cart_count(request),
                 'cart_added': cart_added,
+                
             }
             context.update(currency_context)
             
@@ -449,12 +455,27 @@ class all_productsview(View):
     template_name = 'customer_website/products.html'
 
     def get(self, request, *args, **kwargs):
-        # Get search and sort parameters
         search_query = request.GET.get('search', '').strip()
         sort_by = request.GET.get('sort', 'name-asc')
+        category_id = request.GET.get('category', '').strip()
+        title_name = "All Products"
         
-        # Start with all products
         products_list = Product.objects.all()
+        
+        if category_id and category_id != 'all':
+            try:
+                category = Category.objects.get(category_id=category_id)
+                # Check if it's a parent category
+                if category.subcategories.exists():
+                    title_name = category.name
+                    subcategory_ids = [subcat.category_id for subcat in category.subcategories.all()]
+                    subcategory_ids.append(category_id)  # Include the parent category itself
+                    products_list = products_list.filter(category__in=subcategory_ids)
+                else:
+                    title_name = category.name
+                    products_list = products_list.filter(category=category_id)
+            except Category.DoesNotExist:
+                pass
         
         # Apply search filter if search query exists
         if search_query:
@@ -470,7 +491,9 @@ class all_productsview(View):
         elif sort_by == 'price-desc':
             products_list = products_list.order_by('-unit_price')
         
-        # Pagination
+        main_categories = Category.objects.filter(parent_category__isnull=True).order_by('name')
+        all_categories = Category.objects.all().order_by('name')
+        
         paginator = Paginator(products_list, 20)
         page_number = request.GET.get('page', 1)
         
@@ -493,11 +516,47 @@ class all_productsview(View):
             'cart_count': get_cart_count(request),
             'search_query': search_query,
             'sort_by': sort_by,
+            'selected_category': category_id,
+            'main_categories': main_categories,
+            'all_categories': all_categories,
             'total_products': products_list.count(),
+            'title_name': title_name,
         }
         context.update(currency_context)
 
         return render(request, self.template_name, context)
+
+class search_ajax_view(View):
+    def get(self, request, *args, **kwargs):
+        search_query = request.GET.get('q', '').strip()
+        products_list = Product.objects.none()
+        
+        if search_query and len(search_query) >= 2:  # Only search if query is at least 2 characters
+            products_list = Product.objects.filter(product_name__icontains=search_query)  # Show all results
+        
+        currency_context = get_currency_context(request)
+        convert_product_prices(products_list, currency_context['currency_info'])
+        
+        # Return JSON response
+        from django.http import JsonResponse
+        results = []
+        for product in products_list:
+            results.append({
+                'sku': product.sku,
+                'name': product.product_name,
+                'description': product.description[:100] + '...' if len(product.description) > 100 else product.description,
+                'price': str(product.unit_price),
+                'currency_symbol': currency_context['currency_symbol'],
+                'image_url': product.product_image if product.product_image else None,
+                'category': product.category.name if product.category else None,
+                'product_url': f"/product/{product.sku}/"
+            })
+        
+        return JsonResponse({
+            'results': results,
+            'query': search_query,
+            'total_count': len(results)
+        })
     
 def checkout_page(request):
     """Checkout page - placeholder for now"""

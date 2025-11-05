@@ -37,7 +37,6 @@ body {
     background-color: white;
     padding: 2.5rem;
     border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     width: 360px;
     text-align: center;
     max-height: fit-content;

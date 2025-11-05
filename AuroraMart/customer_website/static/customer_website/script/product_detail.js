@@ -15,7 +15,7 @@ function addToCart(event) {
     const quantityInput = document.getElementById('quantity');
     const quantity = quantityInput.value;
     const currentUrl = new URL(window.location.href);
-    const currency = currentUrl.searchParams.get('currency') || 'SGD';
+    const currency = currentUrl.searchParams.get('currency') || document.getElementById('currency-selector').value;
     
     currentUrl.searchParams.set('added', 'true');
     currentUrl.searchParams.set('quantity', quantity);

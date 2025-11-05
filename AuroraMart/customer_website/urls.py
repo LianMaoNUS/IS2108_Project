@@ -14,5 +14,5 @@ urlpatterns = [
     path('product/<str:sku>/', views.product_detailview.as_view(), name='product_detail'),
     path('about/', views.about_page, name='about'),
     path('products/', views.all_productsview.as_view(), name='all_products'),
-    path('search/', views.search_resultsview.as_view(), name='search_results'),
+    path('search/ajax/', views.search_ajax_view.as_view(), name='search_ajax'),
 ]
