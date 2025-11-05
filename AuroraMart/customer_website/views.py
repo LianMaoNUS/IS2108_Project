@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from .models import Customer
 from admin_panel.models import Product, Category
 from django.views import View
@@ -343,13 +344,11 @@ class cartview(View):
     template_name = 'customer_website/cart.html'
 
     def get(self, request, *args, **kwargs):
-        # Handle clear cart
         if request.GET.get('clear') == 'true':
             request.session['cart'] = {}
             request.session.modified = True
             return redirect('cart')
             
-        # Handle remove item
         if request.GET.get('remove_sku'):
             sku_to_remove = request.GET.get('remove_sku')
             cart = request.session.get('cart', {})
@@ -359,7 +358,6 @@ class cartview(View):
                 request.session.modified = True
             return redirect('cart')
         
-        # Handle quantity update
         if request.GET.get('update_sku') and request.GET.get('action'):
             sku_to_update = request.GET.get('update_sku')
             action = request.GET.get('action')
@@ -370,7 +368,6 @@ class cartview(View):
                     cart[sku_to_update]['quantity'] += 1
                 elif action == 'decrease':
                     cart[sku_to_update]['quantity'] -= 1
-                    # Remove item if quantity becomes 0
                     if cart[sku_to_update]['quantity'] <= 0:
                         del cart[sku_to_update]
                 
@@ -379,13 +376,33 @@ class cartview(View):
             return redirect('cart')
         
         cart = request.session.get('cart', {})
+        bulk_update_made = False
+        
+        for param_name, new_quantity in request.GET.items():
+            if param_name.startswith('qty_'):
+                sku = param_name[4:]  
+                if sku in cart:
+                    try:
+                        new_qty = int(new_quantity)
+                        if new_qty > 0:
+                            cart[sku]['quantity'] = new_qty
+                            bulk_update_made = True
+                        elif new_qty == 0:
+                            del cart[sku]
+                            bulk_update_made = True
+                    except ValueError:
+                        pass  
+        
+        if bulk_update_made:
+            request.session['cart'] = cart
+            request.session.modified = True
+            return redirect('cart')
         cart_items = []
         subtotal = 0
         
         currency_context = get_currency_context(request)
 
         for sku, item_data in cart.items():
-            # Convert unit price to selected currency
             converted_unit_price = convert_cart_prices(item_data['unit_price'], currency_context['currency_info'])
             item_total = converted_unit_price * item_data['quantity']
             cart_items.append({
@@ -398,11 +415,21 @@ class cartview(View):
             })
             subtotal += item_total
         
-        # Convert shipping and total to selected currency
         shipping_base = 5.00 if subtotal > 0 else 0
         shipping = convert_cart_prices(shipping_base, currency_context['currency_info']) if shipping_base > 0 else 0
         total = subtotal + shipping
-        
+
+        item_list_sku = list(cart.keys())
+        recommended_products_sku = get_recommendations(item_list_sku, top_n=4)
+        recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
+            
+        if not recommended_products.exists():
+            preferred_category = request.session.get('preferred_category', None)
+            recommended_products = Product.objects.filter(
+                category__name=preferred_category
+            ).exclude(sku__in=item_list_sku)[:4]
+
+        recommended_products = convert_product_prices(recommended_products, currency_context['currency_info'])
         
         context = {
             'cart_items': cart_items,
@@ -412,11 +439,66 @@ class cartview(View):
             'cart_count': get_cart_count(request),
             'username': request.session.get('username'),
             'profile_picture': request.session.get('profile_picture'),
+            'recommended_products': recommended_products,
         }
         context.update(currency_context)
         
         return render(request, self.template_name, context)
+    
+class all_productsview(View):
+    template_name = 'customer_website/products.html'
 
+    def get(self, request, *args, **kwargs):
+        # Get search and sort parameters
+        search_query = request.GET.get('search', '').strip()
+        sort_by = request.GET.get('sort', 'name-asc')
+        
+        # Start with all products
+        products_list = Product.objects.all()
+        
+        # Apply search filter if search query exists
+        if search_query:
+            products_list = products_list.filter(product_name__icontains=search_query)
+        
+        # Apply sorting
+        if sort_by == 'name-asc':
+            products_list = products_list.order_by('product_name')
+        elif sort_by == 'name-desc':
+            products_list = products_list.order_by('-product_name')
+        elif sort_by == 'price-asc':
+            products_list = products_list.order_by('unit_price')
+        elif sort_by == 'price-desc':
+            products_list = products_list.order_by('-unit_price')
+        
+        # Pagination
+        paginator = Paginator(products_list, 20)
+        page_number = request.GET.get('page', 1)
+        
+        try:
+            products = paginator.page(page_number)
+        except:
+            products = paginator.page(1)
+        
+        currency_context = get_currency_context(request)
+        convert_product_prices(products, currency_context['currency_info'])
+
+        context = {
+            'all_products': products_list,
+            'products': products,
+            'paginator': paginator,
+            'page_obj': products,
+            'is_paginated': paginator.num_pages > 1,
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+            'cart_count': get_cart_count(request),
+            'search_query': search_query,
+            'sort_by': sort_by,
+            'total_products': products_list.count(),
+        }
+        context.update(currency_context)
+
+        return render(request, self.template_name, context)
+    
 def checkout_page(request):
     """Checkout page - placeholder for now"""
     return render(request, 'customer_website/checkout.html', {
@@ -438,29 +520,6 @@ def profile_page(request):
         messages.error(request, "Please log in to view your profile.")
         return redirect('login')
 
-def product_detail(request, sku):
-    """Product details page"""
-    try:
-        from admin_panel.models import Product
-        product = Product.objects.get(sku=sku)
-        # Placeholder for recommended products (AI integration later)
-        recommended_products = Product.objects.exclude(sku=sku)[:4]
-        return render(request, 'customer_website/product_detail.html', {
-            'product': product,
-            'recommended_products': recommended_products
-        })
-    except Product.DoesNotExist:
-        messages.error(request, "Product not found.")
-        return redirect('all_products')
-
 def about_page(request):
     """About us page"""
     return render(request, 'customer_website/about.html')
-
-def all_products(request):
-    """All products page"""
-    from admin_panel.models import Product
-    products = Product.objects.all()
-    return render(request, 'customer_website/products.html', {
-        'products': products
-    })

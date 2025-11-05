@@ -658,6 +658,12 @@ a.btn:visited, a.btn:hover {
     border-radius: 0; /* No border radius for card images */
 }
 
+.product-card .product-image-placeholder img {
+    width: 80%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .product-content {
     flex: 1;
     display: flex;

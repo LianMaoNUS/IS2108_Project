@@ -75,9 +75,10 @@
                             <div class="item-quantity">
                                 <label>Quantity:</label>
                                 <div class="quantity-controls">
-                                    <a href="{% url 'cart' %}?update_sku={{ item.sku }}&action=decrease" class="quantity-btn">-</a>
-                                    <span class="quantity-value">{{ item.quantity }}</span>
-                                    <a href="{% url 'cart' %}?update_sku={{ item.sku }}&action=increase" class="quantity-btn">+</a>
+                                    <button type="button" class="quantity-btn" onclick="decreaseQuantity('{{ item.sku }}')">-</button>
+                                    <input type="number" class="quantity-input" value="{{ item.quantity }}" min="1" max="99" 
+                                           id="qty-{{ item.sku }}" onchange="markChanged('{{ item.sku }}')" data-original="{{ item.quantity }}">
+                                    <button type="button" class="quantity-btn" onclick="increaseQuantity('{{ item.sku }}')">+</button>
                                 </div>
                             </div>
                             <div class="item-total">
@@ -108,12 +109,22 @@
                             <span><strong>{{ currency_symbol }}{{ total }}</strong></span>
                         </div>
                         <div class="summary-actions">
-                            <a href="{% url 'customer_home' %}" class="btn btn-secondary">Continue Shopping</a>
+                            <!-- Save Changes Button (hidden by default) -->
+                            <button id="save-changes-btn" class="btn btn-success" onclick="saveChanges()" style="display: none;">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                Save Changes
+                            </button>
                             <a href="{% url 'checkout' %}" class="btn btn-primary">Proceed to Checkout</a>
                             <button class="btn btn-outline" onclick="clearCart()">Clear Cart</button>
                         </div>
                     </div>
                 </div>
+            <div class="continue-shopping-section">
+            <a href="{% url 'customer_home' %}" class="btn btn-secondary continue-shopping-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                Continue Shopping
+            </a>
+        </div>
             {% else %}
                 <div class="empty-cart">
                     <div class="empty-cart-icon">
@@ -125,6 +136,36 @@
                 </div>
             {% endif %}
         </div>
+
+        {% if recommended_products %}
+        <section class="recommendations-section">
+            <div class="section-header">
+                {% if cart_items %}
+                <h2>You might also like</h2>
+                {% else %}
+                <h2>Or you can take a look at these products</h2>
+                {% endif %}
+            </div>
+            <div class="product-grid-horizontal">
+                {% for rec_product in recommended_products %}
+                <div class="product-card">
+                    <div class="product-image-placeholder">
+                        <img src="{{ rec_product.product_image }}" alt="{{ rec_product.product_name }}">
+                    </div>
+                    <div class="product-content">
+                        <div class="product-info">
+                            <h3>{{ rec_product.product_name }}</h3>
+                            <p class="product-desc">{{ rec_product.description|truncatewords:10 }}</p>
+                            <p class="product-price"><strong>{{ currency_symbol }}{{ rec_product.unit_price }}</strong></p>
+                        </div>
+                        <a href="{% url 'product_detail' rec_product.sku %}" class="btn btn-secondary">View</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        
     </main>
 
     <footer>
@@ -164,31 +205,6 @@
         </div>
     </footer>
 
-    <script>
-        function clearCart() {
-            if (confirm('Are you sure you want to clear your cart?')) {
-                window.location.href = '{% url "cart"%}?clear=true';
-            }
-        }
-        
-        function removeItem(sku, productName) {
-            if (confirm('Are you sure you want to remove "' + productName + '" from your cart?')) {
-                window.location.href = '{% url "cart" %}?remove_sku=' + sku;
-            }
-        }
-        
-        // Currency selector functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const currencySelector = document.getElementById('currency-selector');
-            if (currencySelector) {
-                currencySelector.addEventListener('change', function() {
-                    const selectedCurrency = this.value;
-                    const currentUrl = new URL(window.location.href);
-                    currentUrl.searchParams.set('currency', selectedCurrency);
-                    window.location.href = currentUrl.toString();
-                });
-            }
-        });
-    </script>
+
 </body>
 </html>
