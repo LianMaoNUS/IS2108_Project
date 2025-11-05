@@ -1,58 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ product.product_name }} - AuroraMart</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'customer_website/css/navbar_footer.css' %}">
-    <link rel="stylesheet" href="{% static 'customer_website/css/product_detail.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="{% static 'customer_website/script/product_detail.js' %}"></script>
-    <script src="{% static 'customer_website/script/navbar_search.js' %}"></script>
-</head>
-<body>
-    <nav class="navbar">
-        <a href="{% url 'customer_home' %}" class="logo">
-            <div class="logo-container">
-                <div class="logo-circle">
-                    <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
-                </div>
-            </div>
-        </a>
+{% extends 'customer_website/base.html' %}
+{% load static %}
 
-        <div class="nav-search">
-            <div class="search-input-wrapper">
-                <i class="fas fa-search"></i>
-                <input type="text" id="nav-search-input" placeholder="Search products..." class="nav-search-input">
-            </div>
-        </div>
+{% block title %}AuroraMart - Homepage{% endblock %}
 
-        <div class="nav-links">
-            <a href="#">Browse</a>
-            <a href="#">About</a>
-            <a href="#" class="nav-profile-link">
-                <img src="{{ profile_picture }}" alt="Profile" class="nav-profile-pic">
-            </a>
-            <a href="{% url 'cart' %}" class="nav-icon cart-icon">
-                <i class="fa-solid fa-cart-shopping"></i>
-                {% if cart_count > 0 %}
-                <span class="cart-badge">{{ cart_count }}</span>
-                {% endif %}
-            </a>
-            <div class="currency-selector">
-                <select class="currency-dropdown" id="currency-selector">
-                    <option value="SGD" {% if selected_currency == 'SGD' %}selected{% endif %}>SGD S$</option>
-                    <option value="USD" {% if selected_currency == 'USD' %}selected{% endif %}>USD $</option>
-                    <option value="EUR" {% if selected_currency == 'EUR' %}selected{% endif %}>EUR €</option>
-                    <option value="JPY" {% if selected_currency == 'JPY' %}selected{% endif %}>JPY ¥</option>
-                    <option value="GBP" {% if selected_currency == 'GBP' %}selected{% endif %}>GBP £</option>
-                </select>
-            </div>
-        </div>
-    </nav>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'customer_website/css/product_detail.css' %}">
+{% endblock %}
 
-    <main>
+{% block extra_js %}
+<script src="{% static 'customer_website/script/product_detail.js' %}"></script>
+{% endblock %}
+
+{% block content %}
         {% if product %}
         <div class="breadcrumb">
             <a href="{% url 'customer_home' %}">Home</a>
@@ -210,43 +169,4 @@
             </div>
         </section>
         {% endif %}
-    </main>
-
-    <footer>
-        <div class="footer-main">
-            <div class="footer-col-logo">
-                <div class="footer-logo">
-                    <div class="logo-circle footer-logo-circle">
-                        <span class="logo-text">AM</span>
-                    </div>
-                    <span class="logo-name">AuroraMart</span>
-                </div>
-                <div class="social-icons">
-                    <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
-                    <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                </div>
-            </div>
-            <div class="footer-col-links">
-                <h3>Help</h3>
-                <ul>
-                    <li><a href="#">FAQ</a></li>
-                    <li><a href="#">Customer service</a></li>
-                    <li><a href="#">How to guides</a></li>
-                    <li><a href="#">Contact us</a></li>
-                </ul>
-            </div>
-            <div class="footer-col-links">
-                <h3>Other</h3>
-                <ul>
-                    <li><a href="#">Privacy Policy</a></li>
-                    <li><a href="#">About us</a></li>
-                    <li><a href="#">Subscriptions</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 AuroraMart. Everyday quality without luxury markup.</p>
-        </div>
-    </footer>
-</body>
-</html>
+{% endblock %}

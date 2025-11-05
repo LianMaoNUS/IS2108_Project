@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from .models import Customer
-from admin_panel.models import Product, Category
+from admin_panel.models import Product, Category ,Order, OrderItem
 from django.views import View
 from .forms import CustomerLoginForm, CustomerSignupForm,CustomerForm
 from django.contrib.auth.hashers import check_password
@@ -537,7 +537,6 @@ class search_ajax_view(View):
         currency_context = get_currency_context(request)
         convert_product_prices(products_list, currency_context['currency_info'])
         
-        # Return JSON response
         from django.http import JsonResponse
         results = []
         for product in products_list:
@@ -565,19 +564,33 @@ def checkout_page(request):
         'total': 0
     })
 
-def profile_page(request):
-    """Customer profile page"""
-    if request.user.is_authenticated and hasattr(request.user, 'customer'):
-        customer = request.user.customer
-        # Get orders for this customer (you'll need to implement this)
-        orders = []  # Placeholder
-        return render(request, 'customer_website/profile.html', {
+class profile_page(View):
+    template_name = 'customer_website/profile.html'
+
+    def get(self, request, *args, **kwargs):
+        username = request.session.get('username')
+        customer = Customer.objects.get(username=username)
+        customer_orders = Order.objects.filter(customer=customer).order_by('-order_date')
+
+        if request.GET.get('logout') == 'true':
+            request.session.flush()
+            return redirect('login')
+        currency_context = get_currency_context(request)
+        convert_product_prices(
+            [item for order in customer_orders for item in order.orderitem_set.all().values_list('product__unit_price', flat=True)],
+            currency_context['currency_info']
+        )
+
+        
+        context = {
             'customer': customer,
-            'orders': orders
-        })
-    else:
-        messages.error(request, "Please log in to view your profile.")
-        return redirect('login')
+            'username': username,
+            'profile_picture': request.session.get('profile_picture'),
+            'cart_count': get_cart_count(request),
+            'customer_orders': customer_orders,
+        }
+        context.update(currency_context)
+        return render(request, self.template_name, context)
 
 def about_page(request):
     """About us page"""

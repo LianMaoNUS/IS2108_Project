@@ -305,7 +305,6 @@ h1, h2, h3 {
     background: rgba(34, 197, 94, 0.1);
 }
 
-/* Remove spinner arrows from number input */
 .quantity-input::-webkit-outer-spin-button,
 .quantity-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
