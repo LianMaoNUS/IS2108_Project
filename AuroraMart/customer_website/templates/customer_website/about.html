@@ -1,85 +1,44 @@
-<!-- customer_website/templates/customer_website/about.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>About Us - AuroraMart</title>
-    <style>
-        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
-        .hero { background: #007bff; color: white; padding: 3rem; text-align: center; border-radius: 8px; margin-bottom: 2rem; }
-        .mission-section, .team-section { margin-bottom: 3rem; }
-        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; }
-        .team-member { text-align: center; }
-        .values-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
-        .value-card { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; }
-    </style>
-</head>
-<body>
-    <nav style="background: #f8f9fa; padding: 1rem;">
-        <a href="{% url 'main_page' %}">Home</a> |
-        <a href="{% url 'all_products' %}">Products</a> |
-        <a href="{% url 'about' %}">About</a>
-    </nav>
+{% extends 'customer_website/base.html' %}
+{% load static %}
 
-    <div class="container">
-        <div class="hero">
-            <h1>About AuroraMart</h1>
-            <p>Everyday quality without the luxury markup</p>
-        </div>
+{% block title %}About Us - AuroraMart{% endblock %}
 
-        <div class="mission-section">
-            <h2>Our Mission</h2>
-            <p>At AuroraMart, we believe that everyone deserves access to high-quality products without paying premium prices. We're revolutionizing e-commerce in Southeast Asia by combining smart technology with curated selections.</p>
-        </div>
+{% block extra_css %}
+    <link rel="stylesheet" type="text/css" href="{% static 'customer_website/css/about.css' %}">
+{% endblock %}
 
-        <div class="values-section">
-            <h2>Our Values</h2>
-            <div class="values-list">
-                <div class="value-card">
-                    <h3>🛍️ Curated Selection</h3>
-                    <p>We carefully select products to offer breadth without decision fatigue.</p>
-                </div>
-                <div class="value-card">
-                    <h3>🤖 Smart Personalization</h3>
-                    <p>AI-powered recommendations to help you discover products you'll love.</p>
-                </div>
-                <div class="value-card">
-                    <h3>💰 Fair Pricing</h3>
-                    <p>Quality products at reasonable prices, always.</p>
-                </div>
-                <div class="value-card">
-                    <h3>🚚 Reliable Service</h3>
-                    <p>Fast shipping and excellent customer support across Southeast Asia.</p>
-                </div>
-            </div>
-        </div>
+{% block extra_js %}
+    <script src="{% static 'customer_website/script/about.js' %}"></script>
+{% endblock %}
 
-        <div class="stats-section">
-            <h2>By The Numbers</h2>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; text-align: center;">
-                <div>
-                    <h3>500+</h3>
-                    <p>Products</p>
-                </div>
-                <div>
-                    <h3>10,000+</h3>
-                    <p>Happy Customers</p>
-                </div>
-                <div>
-                    <h3>6</h3>
-                    <p>Countries Served</p>
-                </div>
-                <div>
-                    <h3>24/7</h3>
-                    <p>Customer Support</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="team-section">
-            <h2>Our Story</h2>
-            <p>AuroraMart was founded in 2024 with a simple vision: to make quality shopping accessible to everyone in Southeast Asia. Backed by venture capital and powered by cutting-edge AI technology, we're committed to delivering personalized shopping experiences that keep customers coming back.</p>
-            <p>Our name "Aurora" represents the dawn of a new era in e-commerce - one that's bright, personalized, and accessible to all.</p>
-        </div>
+{% block content %}
+    <div class="breadcrumb">
+        <a href="{% url 'customer_home' %}">Home</a>
+        <span class="separator">></span>
+        <span class="current">About Us</span>
     </div>
-</body>
-</html>
+
+    <section class="about-section">
+        <div class="about-container">
+            <h1>About AuroraMart</h1>
+            <p>Welcome to AuroraMart, your number one source for all things [product, e.g., electronics, fashion, etc.]. We're dedicated to providing you the very best of [product], with an emphasis on quality, customer service, and uniqueness.</p>
+
+            <h2>Our Story</h2>
+            <p>Founded in [year] by [founder's name], AuroraMart has come a long way from its beginnings in a [starting location, e.g., home office, small store, etc.]. When [founder's name] first started out, their passion for [passion related to the product] drove them to start their own business.</p>
+
+            <h2>Our Mission</h2>
+            <p>At AuroraMart, our mission is to offer a wide range of high-quality products that cater to the diverse needs of our customers. We believe in creating a shopping experience that is not only convenient but also enjoyable and trustworthy.</p>
+
+            <h2>Why Choose Us?</h2>
+            <ul>
+                <li><strong>Quality Products:</strong> We source our products from reputable suppliers to ensure you receive only the best.</li>
+                <li><strong>Customer Satisfaction:</strong> Our customer service team is always ready to assist you with any inquiries or issues.</li>
+                <li><strong>Unique Selection:</strong> We continuously update our inventory with new and exciting products.</li>
+            </ul>
+
+            <h2>Contact Us</h2>
+            <p>If you have any questions or comments about our products or services, please don't hesitate to contact us at <a href="mailto:info@auroramart.com">info@auroramart.com</a>.</p>
+            <p>Thank you for choosing AuroraMart. We look forward to serving you!</p>
+        </div>
+    </section>
+{% endblock %}

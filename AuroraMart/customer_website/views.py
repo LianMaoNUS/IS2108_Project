@@ -6,12 +6,16 @@ from django.core.paginator import Paginator
 from .models import Customer
 from admin_panel.models import Product, Category ,Order, OrderItem
 from django.views import View
-from .forms import CustomerLoginForm, CustomerSignupForm,CustomerForm
+from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm
 from django.contrib.auth.hashers import check_password
 import pandas as pd
 import joblib
 import os
 from decimal import Decimal
+from django.http import JsonResponse
+import uuid
+from datetime import datetime
+from django.db.models import Case, When, Value, IntegerField
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -557,12 +561,201 @@ class search_ajax_view(View):
             'total_count': len(results)
         })
     
-def checkout_page(request):
-    """Checkout page - placeholder for now"""
-    return render(request, 'customer_website/checkout.html', {
-        'cart_items': [],
-        'total': 0
-    })
+class checkout_page(View):
+    template_name = 'customer_website/checkout.html'
+
+    def get(self, request, *args, **kwargs):
+        cart = request.session.get('cart', {})
+        if not cart:
+            return render(request, self.template_name, {
+                'cart_items': [],
+                'subtotal': Decimal('0.00'),
+                'shipping_cost': Decimal('0.00'),
+                'tax_amount': Decimal('0.00'),
+                'total_amount': Decimal('0.00'),
+                'cart_count': get_cart_count(request),
+                'username': request.session.get('username'),
+                'profile_picture': request.session.get('profile_picture'),
+                'checkout_form': None,
+            })
+
+        cart_items, totals = self._calculate_cart_totals(request, cart)
+        
+        checkout_form = CheckoutForm()
+        
+        currency_context = get_currency_context(request)
+
+        context = {
+            'cart_items': cart_items,
+            'subtotal': totals['subtotal'],
+            'shipping_cost': totals['shipping'],
+            'tax_amount': totals['tax'],
+            'total_amount': totals['total'],
+            'cart_count': get_cart_count(request),
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+            'checkout_form': checkout_form,
+        }
+        context.update(currency_context)
+        
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        cart = request.session.get('cart', {})
+        cart_items, totals = self._calculate_cart_totals(request, cart)
+        
+        checkout_form = CheckoutForm(request.POST)
+        
+        currency_context = get_currency_context(request)
+
+        if checkout_form.is_valid():
+            
+            order_result = self._process_order(request, checkout_form.cleaned_data, cart_items, totals)
+            
+            if order_result['success']:
+                # Clear the cart
+                request.session['cart'] = {}
+                request.session.modified = True
+                
+                messages.success(request, f'Order placed successfully! Order ID: {order_result["order_id"]}')
+                return redirect('order_confirmation', order_id=order_result['order_id'])
+            else:
+                print(order_result['error'])
+                messages.error(request, order_result['error'])
+        else:
+            messages.error(request, 'Please correct the errors below.')
+
+        context = {
+            'cart_items': cart_items,
+            'subtotal': totals['subtotal'],
+            'shipping_cost': totals['shipping'],
+            'tax_amount': totals['tax'],
+            'total_amount': totals['total'],
+            'cart_count': get_cart_count(request),
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+            'checkout_form': checkout_form,
+        }
+        context.update(currency_context)
+        
+        return render(request, self.template_name, context)
+
+    def _calculate_cart_totals(self, request, cart):
+        """Calculate cart items and totals"""
+        cart_items = []
+        subtotal = Decimal('0.00')
+        
+        currency_context = get_currency_context(request)
+
+        for sku, item_data in cart.items():
+            converted_unit_price = convert_cart_prices(item_data['unit_price'], currency_context['currency_info'])
+            item_total = converted_unit_price * item_data['quantity']
+            cart_items.append({
+                'sku': sku,
+                'product_name': item_data['product_name'],
+                'unit_price': converted_unit_price,
+                'quantity': item_data['quantity'],
+                'total_price': item_total,
+                'product_image': item_data.get('product_image')
+            })
+            subtotal += item_total
+        
+        # Calculate shipping, tax, and total
+        shipping_base = Decimal('5.00') if subtotal > 0 else Decimal('0.00')
+        shipping = convert_cart_prices(shipping_base, currency_context['currency_info']) if shipping_base > 0 else Decimal('0.00')
+        
+        # Tax calculation (8% GST)
+        tax_rate = Decimal('0.08')
+        tax_amount = subtotal * tax_rate
+        
+        total = subtotal + shipping + tax_amount
+
+        return cart_items, {
+            'subtotal': subtotal,
+            'shipping': shipping,
+            'tax': tax_amount,
+            'total': total
+        }
+
+    def _process_order(self, request, form_data, cart_items, totals):
+        """Process the order and create database records"""
+        try:
+            username = request.session.get('username')
+            customer = Customer.objects.get(username=username)
+
+            order = Order.objects.create(
+                customer=customer,
+                status= 'PENDING',
+                shipping_address=f"{form_data['address']}, {form_data['city']}, {form_data['postal_code']}, {form_data['country']}",
+                order_notes=form_data.get('order_notes', ''),
+                total_amount=totals['total'],
+                order_date=datetime.now()
+            )
+
+            # Create order items
+            for item in cart_items:
+                try:
+                    product = Product.objects.get(sku=item['sku'])
+                    OrderItem.objects.create(
+                        order_id=order,
+                        product=product,
+                        quantity=item['quantity'],
+                        price_at_purchase=item['unit_price']
+                    )
+                except Product.DoesNotExist:
+                    return {
+                        'success': False,
+                        'error': f'Product {item["sku"]} not found.'
+                    }
+                
+            order.save()
+            
+            return {
+                'success': True,
+                'order_id': order
+            }
+                
+        except Customer.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'Customer not found. Please log in again.'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'An error occurred while processing your order: {str(e)}'
+            }
+
+class order_confirmation_page(View):
+    template_name = 'customer_website/order_confirmation.html'
+
+    def get(self, request, order_id, *args, **kwargs):
+        try:
+            order = Order.objects.get(order_id=order_id)
+            
+            username = request.session.get('username')
+            if not username or order.customer.username != username:
+                messages.error(request, 'Order not found or access denied.')
+                return redirect('customer_home')
+
+            order_items = OrderItem.objects.filter(order_id=order)
+            currency_context = get_currency_context(request)
+
+            context = {
+                'order': order,
+                'order_items': order_items,
+                'cart_count': get_cart_count(request),
+                'username': username,
+                'profile_picture': request.session.get('profile_picture'),
+            }
+            context.update(currency_context)
+            
+            return render(request, self.template_name, context)
+            
+        except Order.DoesNotExist:
+            messages.error(request, 'Order not found.')
+            return redirect('customer_home')
+
 
 class profile_page(View):
     template_name = 'customer_website/profile.html'
@@ -570,17 +763,46 @@ class profile_page(View):
     def get(self, request, *args, **kwargs):
         username = request.session.get('username')
         customer = Customer.objects.get(username=username)
-        customer_orders = Order.objects.filter(customer=customer).order_by('-order_date')
+        sort_by = request.GET.get('sort', 'date-desc')
+        customer_orders = Order.objects.filter(customer=customer)
+        
+        if sort_by == 'date-asc':
+            customer_orders = customer_orders.order_by('order_date')
+        elif sort_by == 'date-desc':
+            customer_orders = customer_orders.order_by('-order_date')
+        elif sort_by == 'status-pending':
+            customer_orders = customer_orders.order_by('-order_date').filter(status='PENDING')
+        elif sort_by == 'status-completed':
+            customer_orders = customer_orders.order_by('-order_date').filter(status='COMPLETED')
+        elif sort_by == 'status-cancelled':
+            customer_orders = customer_orders.order_by('-order_date').filter(status='CANCELLED')
+        elif sort_by == 'status-all':
+            customer_orders = customer_orders.annotate(
+                status_order=Case(
+                    When(status='PENDING', then=Value(1)),
+                    When(status='COMPLETED', then=Value(2)),
+                    When(status='CANCELLED', then=Value(3)),
+                    default=Value(4),
+                    output_field=IntegerField(),
+                )
+            ).order_by('status_order', '-order_date')
+        else:
+            customer_orders = customer_orders.order_by('-order_date')
 
         if request.GET.get('logout') == 'true':
             request.session.flush()
             return redirect('login')
         currency_context = get_currency_context(request)
-        convert_product_prices(
-            [item for order in customer_orders for item in order.orderitem_set.all().values_list('product__unit_price', flat=True)],
-            currency_context['currency_info']
-        )
-
+        
+        for order in customer_orders:
+            order_total = Decimal('0.00')
+            order_items = list(order.items.all())
+            for item in order_items:
+                item.converted_price = convert_cart_prices(item.price_at_purchase, currency_context['currency_info'])
+                item_total = item.converted_price * item.quantity
+                order_total += item_total
+            order.converted_total = order_total
+            order.processed_items = order_items 
         
         context = {
             'customer': customer,
@@ -588,10 +810,21 @@ class profile_page(View):
             'profile_picture': request.session.get('profile_picture'),
             'cart_count': get_cart_count(request),
             'customer_orders': customer_orders,
+            'current_sort': sort_by,
         }
         context.update(currency_context)
         return render(request, self.template_name, context)
 
-def about_page(request):
-    """About us page"""
-    return render(request, 'customer_website/about.html')
+
+class about_us_view(View):
+    template_name = 'customer_website/about.html'
+
+    def get(self, request, *args, **kwargs):
+        currency_context = get_currency_context(request)
+        context = {
+            'username': request.session.get('username'),
+            'profile_picture': request.session.get('profile_picture'),
+            'cart_count': get_cart_count(request),
+        }
+        context.update(currency_context)
+        return render(request, self.template_name, context)

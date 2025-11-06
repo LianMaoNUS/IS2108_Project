@@ -71,7 +71,7 @@
                 <div class="product-card">
 
                     <div class="product-image-placeholder">
-                        <img src="{{ product.image_url }}" alt="{{ product.product_name }}" class="product-image">
+                        <img src="{{ product.product_image }}" alt="{{ product.product_name }}" class="product-image">
                     </div>
 
                     <div class="product-content">
@@ -114,7 +114,7 @@
                 <div class="product-card">
 
                     <div class="product-image-placeholder">
-                        <img src="{{ product.image_url }}" alt="{{ product.product_name }}" class="product-image">
+                        <img src="{{ product.product_image  }}" alt="{{ product.product_name }}" class="product-image">
                     </div>
 
                     <div class="product-content">
@@ -142,25 +142,23 @@
 
                 {% for category in main_category %}
 
-                <div class="category-card">
-
-                    <div class="category-image-placeholder"></div>
-
-                    <h3>{{ category.name }}</h3>
-
-                </div>
+                <a href="{% url 'all_products' %}?category={{ category.category_id }}" class="category-link">
+                    <div class="category-card" data-category-index="{{ forloop.counter0 }}">
+                        <div class="category-image-placeholder"></div>
+                        <h3>{{ category.name }}</h3>
+                    </div>
+                </a>
 
                 {% endfor %}
 
                 {% for category in more_categories %}
 
-                <div class="category-card">
-
-                    <div class="category-image-placeholder"></div>
-
-                    <h3>{{ category.name }}</h3>
-
-                </div>
+                <a href="{% url 'all_products' %}?category={{ category.category_id }}" class="category-link">
+                    <div class="category-card" data-category-index="{{ forloop.counter0|add:main_category.count }}">
+                        <div class="category-image-placeholder"></div>
+                        <h3>{{ category.name }}</h3>
+                    </div>
+                </a>
 
                 {% endfor %}
 

@@ -1,6 +1,5 @@
 // Profile page functionality
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize currency selector
     initializeCurrencySelector();
 });
 
@@ -15,5 +14,11 @@ function initializeCurrencySelector() {
         currentUrl.searchParams.set('currency', selectedCurrency);
         window.location.href = currentUrl.toString();
     });
+}
+
+function sortOrders(sortValue) {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('sort', sortValue);
+    window.location.href = currentUrl.toString();
 }
 

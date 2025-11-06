@@ -34,19 +34,71 @@
             <div class="profile-content">
                 <!-- Order History Section -->
                 <div class="order-history-section">
-                    <h2>Order History</h2>
+                    <div class="order-history-header">
+                        <h2>Order History</h2>
+                        <div class="order-sort">
+                            <label for="order-sort-select">Sort by:</label>
+                            <select id="order-sort-select" class="sort-select" onchange="sortOrders(this.value)">
+                                <option value="date-desc" {% if current_sort == 'date-desc' %}selected{% endif %}>Latest First</option>
+                                <option value="date-asc" {% if current_sort == 'date-asc' %}selected{% endif %}>Oldest First</option>
+                                <option value="status-all" {% if current_sort == 'status-all' %}selected{% endif %}>Status (Pending → Completed → Cancelled)</option>
+                                <option value="status-pending" {% if current_sort == 'status-pending' %}selected{% endif %}>Pending Only</option>
+                                <option value="status-completed" {% if current_sort == 'status-completed' %}selected{% endif %}>Completed Only</option>
+                                <option value="status-cancelled" {% if current_sort == 'status-cancelled' %}selected{% endif %}>Cancelled Only</option>
+                            </select>
+                        </div>
+                    </div>
                     {% if customer_orders %}
-                        <div class="order-items">
+                        <div class="orders-container">
                             {% for order in customer_orders %}
-                            <div class="order-item">
-                                <div class="order-info">
-                                    <div class="order-product">
-                                        <h4>{{ order.product.product_name }}</h4>
-                                        <p class="order-sku">SKU: {{ order.product.sku }}</p>
+                            <div class="order-card">
+                                <!-- Order Header -->
+                                <div class="order-header">
+                                    <div class="order-info">
+                                        <h3 class="order-id">Order #{{ order.order_id }}</h3>
+                                        <p class="order-date">{{ order.order_date|date:"F d, Y" }} at {{ order.order_date|date:"g:i A" }}</p>
                                     </div>
-                                    <div class="order-details">
-                                        <span class="order-quantity">Qty: {{ order.quantity }}</span>
-                                        <span class="order-price">{{ currency_symbol }}{{ order.total_price }}</span>
+                                    <div class="order-status">
+                                        <span class="status-badge status-{{ order.status|lower }}">{{ order.get_status_display }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Order Items -->
+                                <div class="order-items">
+                                    {% for item in order.processed_items %}
+                                    <div class="order-item">
+                                        <div class="item-image">
+                                            {% if item.product.product_image %}
+                                                <img src="{{ item.product.product_image }}" alt="{{ item.product.product_name }}" class="product-image">
+                                            {% else %}
+                                                <div class="placeholder-image">
+                                                    <i class="fa-solid fa-image"></i>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="item-details">
+                                            <h4 class="item-name">{{ item.product.product_name }}</h4>
+                                            <p class="item-sku">SKU: {{ item.product.sku }}</p>
+                                            <div class="item-quantity-price">
+                                                <span class="item-quantity">Qty: {{ item.quantity }}</span>
+                                                <span class="item-price">
+                                                    {% if item.converted_price %}
+                                                        {{ currency_symbol }}{{ item.converted_price|floatformat:2 }}
+                                                    {% else %}
+                                                        {{ currency_symbol }}{{ item.price_at_purchase|floatformat:2 }}
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Order Total -->
+                                <div class="order-footer">
+                                    <div class="order-total">
+                                        <span class="total-label">Order Total:</span>
+                                        <span class="total-amount">{{ currency_symbol }}{{ order.converted_total|floatformat:2 }}</span>
                                     </div>
                                 </div>
                             </div>

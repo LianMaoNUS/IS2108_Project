@@ -148,3 +148,265 @@ class CustomerForm(forms.ModelForm):
                 'min': '0'
             }),
         }
+
+
+class CheckoutForm(forms.Form):
+    # Shipping Information
+    first_name = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'First Name',
+            'required': True
+        })
+    )
+    last_name = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Last Name',
+            'required': True
+        })
+    )
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'email@example.com',
+            'required': True
+        })
+    )
+    phone = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '+65 1234 5678',
+            'required': True
+        })
+    )
+    address = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '123 Main Street',
+            'required': True
+        })
+    )
+    city = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Singapore',
+            'required': True
+        })
+    )
+    postal_code = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '123456',
+            'required': True
+        })
+    )
+    state = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'State/Province (Optional)'
+        })
+    )
+    
+    COUNTRY_CHOICES = [
+        ('SG', 'Singapore'),
+        ('US', 'United States'),
+        ('GB', 'United Kingdom'),
+        ('CA', 'Canada'),
+        ('AU', 'Australia'),
+        ('JP', 'Japan'),
+        ('DE', 'Germany'),
+        ('FR', 'France'),
+    ]
+    
+    country = forms.ChoiceField(
+        choices=[('', 'Select Country')] + COUNTRY_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'required': True
+        })
+    )
+    
+    # Payment Information
+    PAYMENT_METHOD_CHOICES = [
+        ('credit_card', 'Credit Card'),
+    ]
+    
+    payment_method = forms.ChoiceField(
+        choices=PAYMENT_METHOD_CHOICES,
+        widget=forms.RadioSelect(attrs={
+            'class': 'payment-method-radio'
+        }),
+        initial='credit_card'
+    )
+    
+    # Credit Card Fields
+    card_number = forms.CharField(
+        max_length=19,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '1234 5678 9012 3456',
+            'maxlength': '19'
+        })
+    )
+    card_holder = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'John Doe'
+        })
+    )
+    expiry_date = forms.CharField(
+        max_length=5,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'MM/YY',
+            'maxlength': '5'
+        })
+    )
+    cvv = forms.CharField(
+        max_length=3,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '123',
+            'maxlength': '3'
+        })
+    )
+    
+    # Order Notes
+    order_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Any special delivery instructions...',
+            'rows': 3
+        })
+    )
+    
+    # Terms and Conditions
+    accept_terms = forms.BooleanField(
+        required=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        error_messages={
+            'required': 'You must accept the terms and conditions to proceed.'
+        }
+    )
+    
+    subscribe_newsletter = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        })
+    )
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            # Remove all non-digit characters for validation
+            phone_digits = re.sub(r'\D', '', phone)
+            if len(phone_digits) < 8:
+                raise forms.ValidationError('Please enter a valid phone number.')
+        return phone
+
+    def clean_card_number(self):
+        card_number = self.cleaned_data.get('card_number')
+        payment_method = self.cleaned_data.get('payment_method')
+        
+        if payment_method == 'credit_card':
+            if not card_number:
+                raise forms.ValidationError('Card number is required for credit card payment.')
+            
+            # Remove spaces for validation
+            card_digits = card_number.replace(' ', '')
+            
+            if not card_digits.isdigit():
+                raise forms.ValidationError('Card number must contain only digits.')
+            
+            if len(card_digits) < 13 or len(card_digits) > 19:
+                raise forms.ValidationError('Card number must be between 13 and 19 digits.')
+            
+            # Luhn algorithm validation
+            if not self._luhn_check(card_digits):
+                raise forms.ValidationError('Please enter a valid card number.')
+        
+        return card_number
+
+    def clean_expiry_date(self):
+        expiry_date = self.cleaned_data.get('expiry_date')
+        payment_method = self.cleaned_data.get('payment_method')
+        
+        if payment_method == 'credit_card':
+            if not expiry_date:
+                raise forms.ValidationError('Expiry date is required for credit card payment.')
+            
+            if not re.match(r'^\d{2}/\d{2}$', expiry_date):
+                raise forms.ValidationError('Expiry date must be in MM/YY format.')
+            
+            month, year = expiry_date.split('/')
+            month = int(month)
+            year = int('20' + year)
+            
+            if month < 1 or month > 12:
+                raise forms.ValidationError('Please enter a valid month (01-12).')
+            
+            from datetime import datetime
+            current_date = datetime.now()
+            current_year = current_date.year
+            current_month = current_date.month
+            
+            if year < current_year or (year == current_year and month < current_month):
+                raise forms.ValidationError('Card has expired.')
+        
+        return expiry_date
+
+    def clean_cvv(self):
+        cvv = self.cleaned_data.get('cvv')
+        payment_method = self.cleaned_data.get('payment_method')
+        
+        if payment_method == 'credit_card':
+            if not cvv:
+                raise forms.ValidationError('CVV is required for credit card payment.')
+            
+            if not cvv.isdigit() or len(cvv) < 3 or len(cvv) > 4:
+                raise forms.ValidationError('CVV must be 3 or 4 digits.')
+        
+        return cvv
+
+    def clean_card_holder(self):
+        card_holder = self.cleaned_data.get('card_holder')
+        payment_method = self.cleaned_data.get('payment_method')
+        
+        if payment_method == 'credit_card':
+            if not card_holder:
+                raise forms.ValidationError('Cardholder name is required for credit card payment.')
+        
+        return card_holder
+
+    def _luhn_check(self, card_number):
+        """Luhn algorithm for credit card validation"""
+        total = 0
+        reverse_digits = card_number[::-1]
+        
+        for i, digit in enumerate(reverse_digits):
+            n = int(digit)
+            if i % 2 == 1:
+                n *= 2
+                if n > 9:
+                    n -= 9
+            total += n
+        
+        return total % 10 == 0

@@ -140,6 +140,15 @@ class ProductForm(forms.ModelForm):
         return subcategory
 
 class CustomerForm(forms.ModelForm):
+    preferred_category = forms.ModelChoiceField(
+        queryset=Category.objects.filter(parent_category__isnull=True),
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'id_preferred_category'
+        })
+    )
+
     class Meta:
         model = Customer
         fields  = ['username', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
@@ -148,7 +157,7 @@ class CustomerForm(forms.ModelForm):
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['customer','status']
+        fields = ['customer','status','shipping_address','order_notes']
 
 class CategoryForm(forms.ModelForm):
     class Meta:

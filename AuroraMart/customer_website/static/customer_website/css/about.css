@@ -1,0 +1,229 @@
+@font-face {
+    font-family: 'Spoof';
+    src: url('../SpoofTrialVF.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    min-height: 100vh;
+    color: #ffffff;
+    line-height: 1.6;
+}
+
+main {
+    padding: 0 5%;
+    min-height: calc(100vh - 200px);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    padding: 1.5rem 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 1rem;
+}
+
+.breadcrumb a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.breadcrumb .separator {
+    margin: 0 0.5rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.breadcrumb .current {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* About Section */
+.about-section {
+    padding: 2rem 0;
+}
+
+
+.about-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.about-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, 
+        rgba(102, 126, 234, 0.05) 0%, 
+        rgba(118, 75, 162, 0.05) 50%, 
+        rgba(240, 147, 251, 0.05) 100%);
+    pointer-events: none;
+}
+
+.about-container h1 {
+    font-size: 3rem;
+    color: #6941C6;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-clip: text;
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.about-container h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 2.5rem 0 1rem 0;
+    position: relative;
+    padding-left: 1rem;
+    z-index: 1;
+}
+
+.about-container h2::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+.about-container p {
+    font-size: 1.1rem;
+    color: #4b5563;
+    margin-bottom: 1.5rem;
+    text-align: justify;
+    position: relative;
+    z-index: 1;
+    line-height: 1.8;
+}
+
+.about-container p:first-of-type {
+    font-size: 1.2rem;
+    color: #374151;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 1.5rem;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.about-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+.about-container li {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    padding-left: 2rem;
+}
+
+.about-container li:last-child {
+    border-bottom: none;
+}
+
+.about-container li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+.about-container li {
+    color: #000000;
+}
+
+.about-container li strong {
+    color: #7F56D9;
+    font-weight: 600;
+}
+
+.about-container a {
+    color: #7F56D9;
+    text-decoration: none;
+    font-weight: 500;
+    position: relative;
+}
+
+.about-container a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.about-container a:hover {
+    color: #6941C6;
+    transform: translateY(-1px);
+}
+
+.about-container a:hover::after {
+    width: 100%;
+}
+
+.about-container h2:last-of-type {
+    margin-top: 3rem;
+    color: #7F56D9;
+}
+
+.about-container p:last-child {
+    font-style: italic;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #6941C6;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: rgba(127, 86, 217, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(127, 86, 217, 0.2);
+}

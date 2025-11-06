@@ -106,6 +106,9 @@ class Order(models.Model):
     order_id = models.CharField(max_length=20, primary_key=True, unique=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='orders')
     order_date = models.DateTimeField(auto_now_add=True)
+    shipping_address = models.TextField(max_length=500,null=False, blank=False,default='')
+    order_notes = models.TextField(max_length=1000, null=True, blank=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
 
     def save(self,*args, **kwargs):

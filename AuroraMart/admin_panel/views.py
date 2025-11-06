@@ -108,8 +108,8 @@ class dashboardview(View):
         },
         'orders': {
             'model': Order, 'form': OrderForm, 'title': 'Orders',
-            'fields': ["order_id", "customer", "status"],
-            'rows': lambda item: [item.order_id, item.customer.username, item.status]
+            'fields': ["order_id", "customer", "status","shipping_address","total_amount"],
+            'rows': lambda item: [item.order_id, item.customer.username, item.status, item.shipping_address, item.total_amount]
         },
         'categories': {
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
