@@ -86,43 +86,26 @@ class CustomerSignupForm(forms.ModelForm):
         return cleaned_data
     
 class CustomerForm(forms.ModelForm):
-    gender = forms.ChoiceField(
-        choices=[('', 'Select Gender')] + Customer.GENDER_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    
-    employment_status = forms.ChoiceField(
-        choices=[('', 'Select Employment Status')] + Customer.EMPLOYMENT_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    
-    education = forms.ChoiceField(
-        choices=[('', 'Select Education Level')] + Customer.EDUCATION_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    occupation = forms.ChoiceField(
-        choices=[('', 'Select Occupation')] + Customer.OCCUPATION_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    has_children = forms.ChoiceField(
-        choices=[('', 'Select Option')] + Customer.HAS_CHILDREN_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        # Add 'class': 'form-control' to all fields
         for field_name, field in self.fields.items():
-            if field_name not in ['gender', 'employment_status', 'education', 'has_children']:
-                field.widget.attrs.update({'class': 'form-control'})
+            field.widget.attrs.update({'class': 'form-control'})
+        
+        # Add empty option for choice fields
+        if 'gender' in self.fields:
+            self.fields['gender'].widget.choices = [('', 'Select Gender')] + list(self.fields['gender'].choices)[1:]
+        if 'employment_status' in self.fields:
+            self.fields['employment_status'].widget.choices = [('', 'Select Employment Status')] + list(self.fields['employment_status'].choices)[1:]
+        if 'education' in self.fields:
+            self.fields['education'].widget.choices = [('', 'Select Education Level')] + list(self.fields['education'].choices)[1:]
+        if 'occupation' in self.fields:
+            self.fields['occupation'].widget.choices = [('', 'Select Occupation')] + list(self.fields['occupation'].choices)[1:]
+        if 'has_children' in self.fields:
+            self.fields['has_children'].widget.choices = [('', 'Select Option')] + list(self.fields['has_children'].choices)[1:]
                 
         self.fields['age'].widget.attrs.update({'placeholder': 'Enter your age'})
-        self.fields['occupation'].widget.attrs.update({'placeholder': 'Enter your occupation'})
         self.fields['household_size'].widget.attrs.update({'placeholder': 'Number of people in household'})
         self.fields['monthly_income_sgd'].widget.attrs.update({'placeholder': 'Enter monthly income in SGD'})
 
@@ -133,17 +116,18 @@ class CustomerForm(forms.ModelForm):
         widgets = {
             'username': forms.HiddenInput(),
             'age': forms.NumberInput(attrs={
-                'class': 'form-control',
                 'min': '1',
                 'max': '120'
             }),
-            'occupation': forms.TextInput(attrs={'class': 'form-control'}),
+            'gender': forms.Select(),
+            'employment_status': forms.Select(),
+            'occupation': forms.Select(),
+            'education': forms.Select(),
             'household_size': forms.NumberInput(attrs={
-                'class': 'form-control',
                 'min': '1'
             }),
+            'has_children': forms.Select(),
             'monthly_income_sgd': forms.NumberInput(attrs={
-                'class': 'form-control',
                 'step': '0.01',
                 'min': '0'
             }),

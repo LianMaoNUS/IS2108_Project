@@ -683,12 +683,19 @@ class checkout_page(View):
             username = request.session.get('username')
             customer = Customer.objects.get(username=username)
 
+            # Get currency info to convert back to SGD
+            currency_context = get_currency_context(request)
+            currency_rate = currency_context['currency_info']['rate']
+            
+            # Convert total back to SGD for database storage
+            total_in_sgd = (totals['total'] / currency_rate).quantize(Decimal('0.01'))
+
             order = Order.objects.create(
                 customer=customer,
                 status= 'PENDING',
                 shipping_address=f"{form_data['address']}, {form_data['city']}, {form_data['postal_code']}, {form_data['country']}",
                 order_notes=form_data.get('order_notes', ''),
-                total_amount=totals['total'],
+                total_amount=total_in_sgd,
                 order_date=datetime.now()
             )
 
@@ -696,11 +703,14 @@ class checkout_page(View):
             for item in cart_items:
                 try:
                     product = Product.objects.get(sku=item['sku'])
+                    # Convert price back to SGD for database storage
+                    price_in_sgd = (item['unit_price'] / currency_rate).quantize(Decimal('0.01'))
+                    
                     OrderItem.objects.create(
                         order_id=order,
                         product=product,
                         quantity=item['quantity'],
-                        price_at_purchase=item['unit_price']
+                        price_at_purchase=price_in_sgd
                     )
                 except Product.DoesNotExist:
                     return {
@@ -740,10 +750,21 @@ class order_confirmation_page(View):
 
             order_items = OrderItem.objects.filter(order_id=order)
             currency_context = get_currency_context(request)
+            
+            # Convert prices from SGD to selected currency
+            order_total = Decimal('0.00')
+            for item in order_items:
+                item.converted_price = convert_cart_prices(item.price_at_purchase, currency_context['currency_info'])
+                item.item_total = item.converted_price * item.quantity
+                order_total += item.item_total
+            
+            # Convert order total amount
+            order.converted_total = convert_cart_prices(order.total_amount, currency_context['currency_info'])
 
             context = {
                 'order': order,
                 'order_items': order_items,
+                'order_total': order_total,
                 'cart_count': get_cart_count(request),
                 'username': username,
                 'profile_picture': request.session.get('profile_picture'),

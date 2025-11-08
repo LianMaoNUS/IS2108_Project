@@ -36,9 +36,7 @@
 
             {% if error_message %}
             <div class="error-list" style="color: red; font-size: small;">
-                {% for error in error_message %}
-                <p class="error-message">{{ error }}</p>
-                {% endfor %}
+                <p class="error-message">{{ error_message }}</p>
             </div>
             {% endif %}
 

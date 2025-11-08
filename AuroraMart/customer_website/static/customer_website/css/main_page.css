@@ -433,7 +433,6 @@ a.btn:focus {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-/* Alternating colors for category placeholders */
 .category-card[data-category-index="0"] .category-image-placeholder,
 .category-card[data-category-index="2"] .category-image-placeholder,
 .category-card[data-category-index="4"] .category-image-placeholder,

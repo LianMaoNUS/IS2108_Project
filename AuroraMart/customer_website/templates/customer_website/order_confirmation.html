@@ -144,10 +144,10 @@
             <div class="order-item">
                 <div class="item-info">
                     <h4>{{ item.product.product_name }}</h4>
-                    <p>SKU: {{ item.product.sku }} | Quantity: {{ item.quantity }}</p>
+                    <p>SKU: {{ item.product.sku }} | Quantity: {{ item.quantity }} × {{ currency_symbol }}{{ item.converted_price|floatformat:2 }}</p>
                 </div>
                 <div class="item-price">
-                    {{ currency_symbol }}{{ item.price_at_purchase|floatformat:2 }}
+                    {{ currency_symbol }}{{ item.item_total|floatformat:2 }}
                 </div>
             </div>
             {% endfor %}
@@ -155,7 +155,7 @@
 
         <div class="order-total">
             <div class="total-amount">
-                <strong>Total: {{ currency_symbol }}{{ order.total_amount|floatformat:2 }}</strong>
+                <strong>Total: {{ currency_symbol }}{{ order_total|floatformat:2 }}</strong>
             </div>
         </div>
     </div>

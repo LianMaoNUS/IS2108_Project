@@ -56,11 +56,13 @@ class loginview(View):
                     request.session['profile_picture'] = admin.profile_picture
                     return redirect('admin_dashboard')
                 else:
-                    form.add_error(None, "Incorrect password")
+                    error_message = "Incorrect password"
             except Admin.DoesNotExist:
-                form.add_error(None, "User not found")
-    
-        return render(request, self.template_name, {"form": form})
+                error_message = "User not found"
+            except ValueError as e:
+                error_message = f"Invalid data format: {str(e)}"
+
+        return render(request, self.template_name, {"form": form,"error_message": error_message})
 
 class signupview(View):
     form_class = AdminSignupForm
@@ -287,6 +289,12 @@ class dashboardview(View):
         except Admin.DoesNotExist:
             context = self._get_context_data(error_message=["Admin user not found."])
             return render(self.request, self.template_name, context)
+        except KeyError:
+            context = self._get_context_data(error_message=["Session expired. Please login again."])
+            return render(self.request, self.template_name, context)
+        except Exception as e:
+            context = self._get_context_data(error_message=[f"An error occurred: {str(e)}"])
+            return render(self.request, self.template_name, context)
 
     def get(self, request, *args, **kwargs):
         # 1. Handle Logout
@@ -318,9 +326,19 @@ class dashboardview(View):
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
             except model.DoesNotExist:
-                pass 
+                pass
+            except ValueError as e:
+                context = self._get_context_data(error_message=[f"Invalid ID format: {str(e)}"])
+                return render(request, self.template_name, context)
+            except Exception as e:
+                context = self._get_context_data(error_message=[f"Error loading record: {str(e)}"])
+                return render(request, self.template_name, context)
         elif action == 'Delete':
-            record_selector(request, model, 'delete')
+            try:
+                record_selector(request, model, 'delete')
+            except Exception as e:
+                context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
+                return render(request, self.template_name, context)
             return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
         else:
             form_to_display = form
