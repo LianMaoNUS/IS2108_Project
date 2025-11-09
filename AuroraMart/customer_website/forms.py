@@ -50,12 +50,22 @@ class CustomerSignupForm(forms.ModelForm):
             'class': 'login_form'
         })
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Clear the default email value so it doesn't show in the form
+        self.fields['email'].initial = ''
+    
     class Meta:
         model = Customer
-        fields = ['username', 'password','password_check']
+        fields = ['username', 'email', 'password', 'password_check']
         widgets = {
             'username': forms.TextInput(attrs={
                 'placeholder': 'Enter a unique username',
+                'class': 'login_form'
+            }),
+            'email': forms.EmailInput(attrs={
+                'placeholder': 'Enter your email address',
                 'class': 'login_form'
             }),
             'password': forms.PasswordInput(attrs={
@@ -70,6 +80,7 @@ class CustomerSignupForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         username = cleaned_data.get('username')
+        email = cleaned_data.get('email')
         password = cleaned_data.get('password')
         password_check = cleaned_data.get('password_check')
 
@@ -77,6 +88,11 @@ class CustomerSignupForm(forms.ModelForm):
             username_status = check_username(username)
             if username_status != "Valid":
                 self.add_error('username', username_status)
+
+        if email and 'email' in self.changed_data:
+            # Check if email already exists
+            if Customer.objects.filter(email=email).exists():
+                self.add_error('email', 'This email address is already registered.')
 
         if password:
             password_status = check_password(password, password_check)
@@ -394,3 +410,47 @@ class CheckoutForm(forms.Form):
             total += n
         
         return total % 10 == 0
+
+class ForgotPasswordForm(forms.Form):
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'login_form',
+            'placeholder': 'Enter your username'
+        })
+    )
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        try:
+            Customer.objects.get(username=username)
+        except Customer.DoesNotExist:
+            raise forms.ValidationError("Username not found.")
+        return username
+
+class ResetPasswordForm(forms.Form):
+    password = forms.CharField(
+        label="New Password",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Enter new password',
+            'class': 'login_form'
+        })
+    )
+    password_check = forms.CharField(
+        label="Confirm New Password",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Re-enter new password',
+            'class': 'login_form'
+        })
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_check = cleaned_data.get('password_check')
+        
+        if password:
+            password_status = check_password(password, password_check)
+            if password_status != "Valid":
+                self.add_error('password_check', password_status)
+        
+        return cleaned_data

@@ -221,7 +221,7 @@ class CustomerForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        fields  = ['username', 'password', 'password_check', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
+        fields  = ['username', 'password', 'password_check', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','email','preferred_category']
     
     def clean(self):
         cleaned_data = super().clean()

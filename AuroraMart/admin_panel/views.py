@@ -105,8 +105,8 @@ class dashboardview(View):
         },
         'customers': {
             'model': Customer, 'form': CustomerForm, 'title': 'Customers',
-            'fields': ["customer_id", "username", "age", "gender", "employment_status", "occupation","education","household_size","has_children","monthly_income_sgd","preferred_category"],
-            'rows': lambda item: [item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation,item.education,item.household_size,item.has_children,item.monthly_income_sgd,item.preferred_category]
+            'fields': ["customer_id", "username", "age", "gender", "employment_status", "occupation","education","household_size","has_children","monthly_income_sgd","email","preferred_category"],
+            'rows': lambda item: [item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation,item.education,item.household_size,item.has_children,item.monthly_income_sgd,item.email,item.preferred_category]
         },
         'orders': {
             'model': Order, 'form': OrderForm, 'title': 'Orders',
@@ -327,6 +327,9 @@ class dashboardview(View):
             try:
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
+                if model is Customer:
+                    form_to_display.fields['password'].widget.attrs['value'] = ''
+                    form_to_display.fields['password_check'].widget.attrs['value'] = ''
             except model.DoesNotExist:
                 pass
             except ValueError as e:

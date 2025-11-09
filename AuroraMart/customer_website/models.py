@@ -40,6 +40,7 @@ class Customer(User):
     ]
 
     customer_id = models.CharField(max_length=20, primary_key=True, unique=True,editable=False)
+    email = models.EmailField(max_length=254, default='default@gmail.com', help_text='Customer email address')
     age = models.IntegerField(null=True, blank=True)
     gender = models.CharField(max_length=50, choices=GENDER_CHOICES, null=True, blank=True)
     employment_status = models.CharField(max_length=100, choices=EMPLOYMENT_CHOICES, null=True, blank=True)

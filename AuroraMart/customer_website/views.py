@@ -1,4 +1,6 @@
 from django.shortcuts import render, redirect
+from django.core.mail import send_mail
+from django.urls import reverse
 from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -6,7 +8,7 @@ from django.core.paginator import Paginator
 from .models import Customer
 from admin_panel.models import Product, Category ,Order, OrderItem
 from django.views import View
-from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm
+from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm, ForgotPasswordForm, ResetPasswordForm
 from django.contrib.auth.hashers import check_password
 import pandas as pd
 import joblib
@@ -308,6 +310,7 @@ class signupview(View):
                 request.session['new_user'] = True
                 request.session['new_user_username'] = customer_username
                 request.session['new_user_password'] = form.cleaned_data.get('password')
+                request.session['new_user_email'] = form.cleaned_data.get('email')
                 return redirect('new_user')
             else:
                 form.add_error('password_check', "Passwords do not match")
@@ -331,8 +334,9 @@ class new_userview(View):
     def post(self, request, *args, **kwargs):
         username = request.session.get('new_user_username')
         password = request.session.get('new_user_password')
+        email = request.session.get('new_user_email')
         
-        if not username or not password:
+        if not username or not password or not email:
             return redirect('signup')
             
         form = self.customer_details_form_class(request.POST)
@@ -355,6 +359,7 @@ class new_userview(View):
             customer = Customer(
                 username=username,
                 password=password,
+                email=email,
                 age=customer_data.get('age'),
                 gender=customer_data.get('gender'),
                 employment_status=customer_data.get('employment_status'),
@@ -1021,3 +1026,112 @@ class about_us_view(View):
         }
         context.update(currency_context)
         return render(request, self.template_name, context)
+
+
+class ForgotPasswordView(View):
+    template_name = 'customer_website/forgot_password.html'
+    
+    def get(self, request):
+        form = ForgotPasswordForm()
+        return render(request, self.template_name, {'form': form})
+    
+    def post(self, request):
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            customer = Customer.objects.get(username=username)
+            
+            reset_url = request.build_absolute_uri(
+                reverse('reset_password', kwargs={'username': username})
+            )
+            
+            subject = 'AuroraMart Password Reset'
+            message = f'''Hello {username},
+
+You have requested to reset your password for your AuroraMart account.
+
+Please click the link below to reset your password:
+{reset_url}
+
+If you did not request this password reset, please ignore this email.
+
+Thank you,
+AuroraMart Team'''
+            
+            try:
+                # Create session for password reset
+                request.session[f'password_reset_{username}'] = True
+                request.session.set_expiry(3600)  # Session expires in 1 hour
+                
+                send_mail(
+                    subject,
+                    message,
+                    'noreply@auroramart.com',
+                    [customer.email],
+                    fail_silently=False,
+                )
+                return render(request, self.template_name, {'form': form,'message': f'Password reset link has been sent to {customer.email}'})
+            
+            except Exception as e:
+                
+                return render(request, self.template_name, {'form': form, 'error_message': f'Error sending email: {str(e)}'})        
+        else:
+            #print form not valid error
+            print("not sending...")
+            
+    
+        
+        return render(request, self.template_name, {'form': form, 'error_message': error_check(form.errors.values())})
+
+
+class ResetPasswordView(View):
+    template_name = 'customer_website/reset_password.html'
+    
+    def get(self, request, username):
+        # Check if user has valid reset session
+        if not request.session.get(f'password_reset_{username}'):
+            messages.error(request, 'Invalid or expired reset link.')
+            return redirect('login')
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            form = ResetPasswordForm()
+            return render(request, self.template_name, {'form': form, 'username': username})
+        except Customer.DoesNotExist:
+            messages.error(request, 'Invalid reset link.')
+            return redirect('login')
+    
+    def post(self, request, username):
+        # Check if user has valid reset session
+        if not request.session.get(f'password_reset_{username}'):
+            messages.error(request, 'Invalid or expired reset link.')
+            return redirect('login')
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            form = ResetPasswordForm(request.POST)
+            
+            if form.is_valid():
+                new_password = form.cleaned_data['password']
+                customer.password = new_password
+                customer.save()
+                
+                # Remove the reset session
+                request.session.pop(f'password_reset_{username}', None)
+                
+                # Return success page with redirect timer
+                return render(request, self.template_name, {
+                    'form': form,
+                    'username': username,
+                    'success': True,
+                    'success_message': 'Password has been reset successfully! Redirecting to login...'
+                })
+            
+            return render(request, self.template_name, {
+                'form': form, 
+                'username': username,
+                'error_message': error_check(form.errors.values())
+            })
+        except Customer.DoesNotExist:
+            messages.error(request, 'Invalid reset link.')
+            return redirect('login')
