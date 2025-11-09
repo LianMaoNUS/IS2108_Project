@@ -55,42 +55,6 @@
     </header>
 
     <main>
-        <section id="top-products" class="product-section">
-            <div class="section-header">
-                <h2>Top Products</h2>
-                <div class="nav-arrows">
-                    <span class="arrow" id="scroll-left-top">&lt;</span>
-                    <span class="arrow" id="scroll-right-top">&gt;</span>
-                </div>
-            </div>
-
-            <div class="product-grid-horizontal" id="top-product-grid">
-
-                {% for product in top_products %}
-
-                <div class="product-card">
-
-                    <div class="product-image-placeholder">
-                        <img src="{{ product.product_image }}" alt="{{ product.product_name }}" class="product-image">
-                    </div>
-
-                    <div class="product-content">
-                        <div class="product-info">
-                            <h3>{{ product.product_name }}</h3>
-                            <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
-                            <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
-                        </div>
-                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
-                    </div>
-
-                </div>
-
-                {% endfor %}
-
-            </div>
-
-        </section>
-
         <section id="recommendations" class="product-section">
 
             <div class="section-header">
@@ -115,6 +79,41 @@
 
                     <div class="product-image-placeholder">
                         <img src="{{ product.product_image  }}" alt="{{ product.product_name }}" class="product-image">
+                    </div>
+
+                    <div class="product-content">
+                        <div class="product-info">
+                            <h3>{{ product.product_name }}</h3>
+                            <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
+                            <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
+                        </div>
+                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+                <section id="top-products" class="product-section">
+            <div class="section-header">
+                <h2>Top Products</h2>
+                <div class="nav-arrows">
+                    <span class="arrow" id="scroll-left-top">&lt;</span>
+                    <span class="arrow" id="scroll-right-top">&gt;</span>
+                </div>
+            </div>
+
+            <div class="product-grid-horizontal" id="top-product-grid">
+
+                {% for product in top_products %}
+
+                <div class="product-card">
+
+                    <div class="product-image-placeholder">
+                        <img src="{{ product.product_image }}" alt="{{ product.product_name }}" class="product-image">
                     </div>
 
                     <div class="product-content">

@@ -83,6 +83,32 @@
                 </div>
             </div>
 
+            <!-- Next Best Action Suggestions -->
+            {% if next_best_actions %}
+            <div class="next-best-actions">
+                <h3 class="nba-title">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    Recommended For You
+                </h3>
+                <div class="nba-cards">
+                    {% for action in next_best_actions %}
+                    <a href="?category={{ action.category_id }}&sort={{ sort_by }}" class="nba-card nba-{{ action.type }}">
+                        <div class="nba-card-{{action.type}}">
+                            <i class="fa-solid {{ action.icon }}"></i>
+                        </div>
+                        <div class="nba-content">
+                            <h4 class="nba-card-title">{{ action.title }}</h4>
+                            <p class="nba-description">{{ action.description }}</p>
+                        </div>
+                        <div class="nba-arrow">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <div class="products-grid" id="products-grid">
                 {% for product in products %}
                 <div class="product-card" data-name="{{ product.product_name|lower }}" data-price="{{ product.unit_price }}">

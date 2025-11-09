@@ -85,6 +85,60 @@ class AdminSignupForm(forms.ModelForm):
         
         return cleaned_data
 
+class AdminUpdateForm(forms.ModelForm):
+    password_check = forms.CharField(
+        label="Re-enter password (leave blank to keep current)", 
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Re-enter your password',
+            'class': 'login_form'
+        })
+    )
+    
+    class Meta:
+        model = Admin
+        fields = ['username', 'password', 'password_check', 'role']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'placeholder': 'Enter a unique username',
+                'class': 'login_form'
+            }),
+            'password': forms.PasswordInput(attrs={
+                'placeholder': 'Leave blank to keep current password',
+                'class': 'login_form'
+            }),
+            'role': forms.Select(attrs={
+                'class': 'login_form'
+            })
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].required = False
+        self.fields['password'].required = False
+        self.fields['role'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        password = cleaned_data.get('password')
+        password_check = cleaned_data.get('password_check')
+
+        if username and 'username' in self.changed_data:
+            username_status = check_username(username)
+            if username_status != "Valid":
+                self.add_error('username', username_status)
+
+        if password:
+            password_status = check_password(password, password_check)
+            if password_status != "Valid":
+                self.add_error('password_check', password_status)
+        else:
+            cleaned_data.pop('password', None)
+            cleaned_data.pop('password_check', None)
+        
+        return cleaned_data
+
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
@@ -140,6 +194,22 @@ class ProductForm(forms.ModelForm):
         return subcategory
 
 class CustomerForm(forms.ModelForm):
+    password = forms.CharField(
+        label="New Password (leave blank to keep current)",
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Enter new password (optional)',
+            'class': 'form-control'
+        })
+    )
+    password_check = forms.CharField(
+        label="Re-enter New Password",
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Re-enter new password',
+            'class': 'form-control'
+        })
+    )
     preferred_category = forms.ModelChoiceField(
         queryset=Category.objects.filter(parent_category__isnull=True),
         required=False,
@@ -151,7 +221,24 @@ class CustomerForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        fields  = ['username', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
+        fields  = ['username', 'password', 'password_check', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','preferred_category']
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_check = cleaned_data.get('password_check')
+
+        # Only validate password if a new one is provided
+        if password:
+            password_status = check_password(password, password_check)
+            if password_status != "Valid":
+                self.add_error('password_check', password_status)
+        else:
+            # If no password provided, remove it from cleaned_data to prevent overwriting
+            cleaned_data.pop('password', None)
+            cleaned_data.pop('password_check', None)
+        
+        return cleaned_data
 
 
 class OrderForm(forms.ModelForm):

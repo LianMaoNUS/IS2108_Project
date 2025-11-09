@@ -65,7 +65,7 @@
                     <li>
                         <a href="{% url 'admin_dashboard' %}?type=orderitem"
                             class="nav-item {% if type == 'orderitem' %}active{% endif %}">
-                            <i class="fa-solid fa-clipboard-list nav-icon"></i>
+                            <i class="fa-solid fa-list-check nav-icon"></i>
                             Order Items
                         </a>
                     </li>
@@ -306,10 +306,10 @@
     <div id="form-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <header class="modal-header">
-                {% if admin_details == 'true' %}
-                <h2 id="modal-title"> Update admin details </h2>
+                {% if admin_details %}
+                <h2 id="modal-title">Update Admin Details</h2>
                 {% else %}
-                <h2 id="modal-title"> {{action}} {{type}}</h2>
+                <h2 id="modal-title">{{action}} {{page_title}}</h2>
                 {% endif %}
                 <span class="close-button">&times;</span>
             </header>

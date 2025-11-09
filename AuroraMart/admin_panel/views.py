@@ -12,7 +12,7 @@ from django.db.models import Sum, F
 from django.http import JsonResponse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
-from .forms import AdminLoginForm, AdminSignupForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
+from .forms import AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
 from AuroraMart.models import User 
 from customer_website.models import Customer
 from admin_panel.models import Admin, Order, Category, Product, OrderItem
@@ -50,10 +50,10 @@ class loginview(View):
             try:
                 admin = Admin.objects.get(username=username)
                 if check_password(password, admin.password):
-                    request.session['hasLogin'] = True
-                    request.session['username'] = username
-                    request.session['role'] = admin.role
-                    request.session['profile_picture'] = admin.profile_picture
+                    request.session['admin_hasLogin'] = True
+                    request.session['admin_username'] = username
+                    request.session['admin_role'] = admin.role
+                    request.session['admin_profile_picture'] = str(admin.profile_picture) if admin.profile_picture else None
                     return redirect('admin_dashboard')
                 else:
                     error_message = "Incorrect password"
@@ -243,10 +243,11 @@ class dashboardview(View):
         context = {
             'type': self.view_type,
             'page_title': self.config['title'],
-            'username': self.request.session.get("username"),
-            'user_role': self.request.session.get("role"),
-            'profile_picture': self.request.session.get("profile_picture"),
-            'admin_details': self.request.GET.get('admin_details') == 'true'
+            'username': self.request.session.get("admin_username"),
+            'user_role': self.request.session.get("admin_role"),
+            'profile_picture': self.request.session.get("admin_profile_picture"),
+            'admin_details': self.request.GET.get('admin_details') == 'true',
+            'action': self.request.GET.get('action', '')
         }
 
         if self.view_type == 'dashboard':
@@ -282,8 +283,8 @@ class dashboardview(View):
     
     def _handle_admin_details_get(self):
         try:
-            instance = Admin.objects.get(username=self.request.session["username"])
-            form = AdminSignupForm(instance=instance)
+            instance = Admin.objects.get(username=self.request.session["admin_username"])
+            form = AdminUpdateForm(instance=instance)
             context = self._get_context_data(form=form, admin_details=True)
             return render(self.request, self.template_name, context)
         except Admin.DoesNotExist:
@@ -297,12 +298,13 @@ class dashboardview(View):
             return render(self.request, self.template_name, context)
 
     def get(self, request, *args, **kwargs):
-        # 1. Handle Logout
         if self.request.GET.get('logout') == 'true':
-            request.session.flush()
+            request.session.pop('admin_hasLogin', None)
+            request.session.pop('admin_username', None)
+            request.session.pop('admin_role', None)
+            request.session.pop('admin_profile_picture', None)
             return redirect('admin_login')
         
-        # 2. Handle Admin Details request (same logic for all pages)
         if self.request.GET.get('admin_details') == 'true':
             return self._handle_admin_details_get()
         
@@ -356,8 +358,8 @@ class dashboardview(View):
 
         if admin_update:
             try:
-                form_instance = Admin.objects.get(username=request.session["username"])
-                form_class = AdminSignupForm
+                form_instance = Admin.objects.get(username=request.session["admin_username"])
+                form_class = AdminUpdateForm
             except Admin.DoesNotExist:
                 context = self._get_context_data(error_message=["Admin user not found."])
                 return render(request, self.template_name, context)
@@ -377,11 +379,13 @@ class dashboardview(View):
         form = form_class(request.POST, instance=form_instance)
 
         if form.is_valid():
-            form.save() 
+            saved_instance = form.save() 
             
             if admin_update:
-                request.session['username'] = form.cleaned_data['username']
-                request.session['role'] = form.cleaned_data['role']
+                # Update session with current values from the saved instance
+                request.session['admin_username'] = saved_instance.username
+                request.session['admin_role'] = saved_instance.role
+                request.session['admin_profile_picture'] = str(saved_instance.profile_picture) if saved_instance.profile_picture else None
 
             return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
         else:

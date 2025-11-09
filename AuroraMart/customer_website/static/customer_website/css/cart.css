@@ -1,16 +1,8 @@
-@font-face {
-    font-family: 'Spoof';
-    src: url('../SpoofTrialVF.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
-
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     padding: 0;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-    /* Removed background-attachment: fixed for better performance */
     min-height: 100vh;
     color: #ffffff;
 }
@@ -477,7 +469,7 @@ h1, h2, h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0; /* No border radius for card images */
+    border-radius: 0;
 }
 
 .product-card .product-image-placeholder img {
@@ -492,7 +484,7 @@ h1, h2, h3 {
     flex-direction: column;
     padding: 1rem;
     justify-content: space-between;
-    min-height: 0; /* Ensures proper flex behavior */
+    min-height: 0;
 }
 
 .product-info {
@@ -547,7 +539,7 @@ h1, h2, h3 {
     font-weight: 500;
     font-size: 1.2rem;
     transition: all 0.3s ease;
-    flex-shrink: 0; /* Prevents button from shrinking */
+    flex-shrink: 0; 
     box-sizing: border-box;
 }
 
@@ -591,3 +583,4 @@ h1, h2, h3 {
 .continue-shopping-btn:hover i {
     transform: translateX(-3px);
 }
+

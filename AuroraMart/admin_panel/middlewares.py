@@ -8,7 +8,7 @@ class AdminAuthMiddleware:
     def __call__(self, request):
         
         if request.path.startswith(reverse('admin_dashboard')):
-            if not request.session.get('hasLogin'):
+            if not request.session.get('admin_hasLogin'):
                 return redirect('admin_login')
             
         response = self.get_response(request)

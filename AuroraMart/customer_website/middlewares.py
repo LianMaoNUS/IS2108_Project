@@ -11,8 +11,12 @@ class CustomerAuthMiddleware:
            request.path.startswith(reverse('customer_home')) or \
            request.path.startswith(reverse('cart')) or \
            request.path.startswith(reverse('checkout')) or \
+           request.path.startswith('/order-confirmation/') or \
+           request.path.startswith('/product/') or \
+           request.path.startswith(reverse('all_products')) or \
+           request.path.startswith(reverse('about')) or \
            request.path.startswith(reverse('profile')):
-            if not request.session.get('hasLogin'):
+            if not request.session.get('customer_hasLogin'):
                 return redirect('login')
             
         if request.path == reverse('new_user'):
