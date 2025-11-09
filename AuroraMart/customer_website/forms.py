@@ -53,7 +53,6 @@ class CustomerSignupForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Clear the default email value so it doesn't show in the form
         self.fields['email'].initial = ''
     
     class Meta:

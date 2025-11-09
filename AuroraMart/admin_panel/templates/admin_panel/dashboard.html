@@ -89,6 +89,21 @@
                 <h1>{{ page_title }}</h1>
             </header>
             {% if type != 'dashboard' %}
+            <div class="search-bar-container">
+                <div class="search-form">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" name="search" id="search-input" 
+                               placeholder="Search {{ search_field_label }}..." 
+                               value="{{ search_query }}" class="search-input">
+                    </div>
+                    {% if search_query %}
+                    <a href="?type={{type}}" class="buttons clear-btn">
+                        Clear
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
             <div class="controls-bar">
                 <p class="row-count">Showing: {{rows}} rows</p>
                 <div class="action-buttons">
@@ -103,7 +118,7 @@
                     {% endif %}
                     {% if table_rows %}
                     <button class="buttons export-btn bulk-actions">
-                        <a id="export-csv" href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&export=csv">Export <i class="fa-solid fa-file-export"></i></a>
+                        <a id="export-csv" href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}{% if search_query %}&search={{search_query}}{% endif %}&export=csv">Export <i class="fa-solid fa-file-export"></i></a>
                     </button>
                     <label for="sort-select">Sort by:</label>
                     <select id="sort-by-select" class="sort-select">
@@ -184,10 +199,10 @@
                         </div>
                         <div class="pagination-buttons">
                             {% if has_previous %}
-                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page=1" class="pagination-btn">
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page=1{% if search_query %}&search={{search_query}}{% endif %}" class="pagination-btn">
                                 <i class="fa-solid fa-angles-left"></i> First
                             </a>
-                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{previous_page}}" class="pagination-btn">
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{previous_page}}{% if search_query %}&search={{search_query}}{% endif %}" class="pagination-btn">
                                 <i class="fa-solid fa-angle-left"></i> Previous
                             </a>
                             {% else %}
@@ -204,10 +219,10 @@
                             </span>
 
                             {% if has_next %}
-                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{next_page}}" class="pagination-btn">
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{next_page}}{% if search_query %}&search={{search_query}}{% endif %}" class="pagination-btn">
                                 Next <i class="fa-solid fa-angle-right"></i>
                             </a>
-                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{total_pages}}" class="pagination-btn">
+                            <a href="{% url 'admin_dashboard' %}?type={{type}}&sort_by={{sort_by}}&rows={{rows}}&page={{total_pages}}{% if search_query %}&search={{search_query}}{% endif %}" class="pagination-btn">
                                 Last <i class="fa-solid fa-angles-right"></i>
                             </a>
                             {% else %}
@@ -270,7 +285,7 @@
                         <h3>Top Selling Products (This Month)</h3>
                         <ul>
                             {% for product in top_selling_products %}
-                                <li>{{ product.name }} ({{ product.units_sold }} units)</li>
+                                <li>{{ product.product__product_name }} ({{ product.units_sold }} units)</li>
                             {% empty %}
                                 <li>No sales data available.</li>
                             {% endfor %}

@@ -138,6 +138,30 @@ class dashboardview(View):
         if queryset is None:
             queryset = model.objects.all()
 
+        search_query = self.request.GET.get('search', '').strip()
+        
+        # Define search fields and their display labels
+        search_fields = {
+            'products': 'product_name',
+            'customers': 'username',
+            'orders': 'status',
+            'categories': 'name',
+            'orderitem': 'product__product_name'
+        }
+        
+        self.search_field_label = {
+            'products': 'product name',
+            'customers': 'username',
+            'orders': 'status',
+            'categories': 'category name',
+            'orderitem': 'product name'
+        }.get(self.view_type, 'field')
+        
+        if search_query:
+            search_field = search_fields.get(self.view_type)
+            if search_field:
+                queryset = queryset.filter(**{f'{search_field}__icontains': search_query})
+
         fields = self.config['fields']
         sort_by = self.request.GET.get('sort_by', fields[0] if fields else None)
         
@@ -234,7 +258,9 @@ class dashboardview(View):
             'has_previous': page_obj.has_previous(),
             'has_next': page_obj.has_next(),
             'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None,
-            'next_page': page_obj.next_page_number() if page_obj.has_next() else None
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+            'search_query': self.request.GET.get('search', ''),
+            'search_field_label': getattr(self, 'search_field_label', 'field')
         })
         return context
 

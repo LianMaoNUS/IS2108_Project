@@ -82,7 +82,10 @@
 
         if (exportCsvBtn) {
             exportCsvBtn.addEventListener('click', exportToCsv);
-        }   
+        }
+
+        // Initialize search functionality
+        initializeSearch();
 
         const chart = document.getElementById('salesTrendChart')?.getContext('2d');
         
@@ -128,4 +131,44 @@
         }
 
     });
+
+    // Search functionality with URL parameters (similar to customer products page)
+    function initializeSearch() {
+        const searchInput = document.getElementById('search-input');
+        if (!searchInput) return;
+        
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch();
+            }, 500); // 500ms delay for server requests
+        });
+        
+        // Handle enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                performSearch();
+            }
+        });
+    }
+
+    function performSearch() {
+        const searchTerm = document.getElementById('search-input').value.trim();
+        const currentUrl = new URL(window.location.href);
+        
+        if (searchTerm) {
+            currentUrl.searchParams.set('search', searchTerm);
+        } else {
+            currentUrl.searchParams.delete('search');
+        }
+        
+        // Reset to first page when searching
+        currentUrl.searchParams.delete('page');
+        
+        window.location.href = currentUrl.toString();
+    }
 
