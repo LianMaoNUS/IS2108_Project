@@ -1,7 +1,7 @@
 import re
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
-from admin_panel.models import Category,Product,Order,OrderItem
+from admin_panel.models import Category,Product,Order,OrderItem, Review
 from customer_website.models import Customer
 from AuroraMart.models import User
 
@@ -453,3 +453,18 @@ class ResetPasswordForm(forms.Form):
                 self.add_error('password_check', password_status)
         
         return cleaned_data
+    
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['review_title', 'review_content', 'rating']
+        widgets = {
+            'rating': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'review_content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Write your review here...',
+                'rows': 4
+            }),
+        }

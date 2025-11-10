@@ -1,8 +1,10 @@
 import uuid
 from django.db import models
+from django.db.models import Avg
 from AuroraMart.models import User
 from customer_website.models import Customer
 from django.contrib.auth.hashers import make_password, check_password
+import uuid
 
 # Create your models here.
 class Admin(User):
@@ -96,6 +98,48 @@ class Product(models.Model):
 
     def __str__(self):
         return self.product_name
+
+class Review(models.Model):
+    RATING_CHOICES = [
+        (1, '1 Star'),
+        (2, '2 Stars'),
+        (3, '3 Stars'),
+        (4, '4 Stars'),
+        (5, '5 Stars'),
+    ]
+    
+    review_id = models.AutoField(primary_key=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    customer = models.ForeignKey('customer_website.Customer', on_delete=models.CASCADE, related_name='reviews', null=True, blank=True)
+    review_title = models.CharField(max_length=255)
+    review_content = models.TextField()
+    rating = models.IntegerField(
+        choices=RATING_CHOICES,
+        default=5,
+        help_text='Rating from 1 to 5 stars'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Review'
+        verbose_name_plural = 'Reviews'
+
+    def __str__(self):
+        return f"{self.review_title} - {self.product.product_name}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.update_product_rating()
+
+    def update_product_rating(self):
+        """Update the product's average rating based on all reviews"""
+        avg_rating = self.product.reviews.aggregate(Avg('rating'))['rating__avg']
+        if avg_rating:
+            self.product.product_rating = round(avg_rating, 1)
+            self.product.save(update_fields=['product_rating'])
+
 
 class Order(models.Model):
     STATUS_CHOICES = [

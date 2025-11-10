@@ -4,6 +4,7 @@ from django import forms
 from admin_panel.models import Admin,Category,Product,Order,OrderItem
 from customer_website.models import Customer
 from AuroraMart.models import User
+from .models import Review
 
 def check_username(username):
     if len(username) < 6:
@@ -261,3 +262,27 @@ class OrderItemForm(forms.ModelForm):
     class Meta:
         model = OrderItem
         fields = ['order_id','product','quantity','price_at_purchase']
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['review_title', 'review_content', 'rating']
+        widgets = {
+            'review_title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter review title'
+            }),
+            'review_content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Share your experience with this product'
+            }),
+            'rating': forms.RadioSelect(attrs={
+                'class': 'form-check-input'
+            })
+        }
+        labels = {
+            'review_title': 'Review Title',
+            'review_content': 'Your Review',
+            'rating': 'Rating'
+        }

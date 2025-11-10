@@ -274,7 +274,6 @@ h1, h2, h3 {
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
     color: #374151;
     font-size: 0.85rem;
     font-weight: 500;
@@ -292,7 +291,6 @@ h1, h2, h3 {
 .sort-select:focus {
     outline: none;
     border-color: #7F56D9;
-    box-shadow: 0 0 0 2px rgba(127, 86, 217, 0.2);
 }
 
 .orders-container {
@@ -438,6 +436,7 @@ h1, h2, h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
 }
 
 .item-quantity {
@@ -446,10 +445,42 @@ h1, h2, h3 {
     font-weight: 500;
 }
 
+.price-review-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
 .item-price {
     font-size: 0.95rem;
     font-weight: 700;
     color: #7F56D9;
+}
+
+/* Small Review Button */
+.btn-review-small {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-review-small:hover {
+    transform: translateY(-1px);
+}
+
+.btn-review-small i {
+    font-size: 0.7rem;
 }
 
 /* Order Footer */
@@ -494,7 +525,6 @@ h1, h2, h3 {
     margin: 0;
 }
 
-/* Logout button specific styling */
 .logout-btn .fa-solid:first-child {
     color: #EF4444 !important;
 }
@@ -504,154 +534,195 @@ h1, h2, h3 {
     border-color: rgba(239, 68, 68, 0.3);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .profile-container {
-        padding: 1rem 0;
-    }
-    
-    .profile-header {
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .profile-info {
-        flex-direction: column;
-        text-align: center;
-        gap: 1.5rem;
-    }
-    
-    .profile-details h1 {
-        font-size: 2rem;
-    }
-    
-    .profile-content {
-        padding: 1.5rem;
-    }
-    
-    .menu-link {
-        padding: 1.2rem;
-    }
-    
-    .menu-link span {
-        font-size: 1rem;
-    }
-    
-    /* Order History Header Responsive */
-    .order-history-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .sort-select {
-        min-width: 100%;
-        width: 100%;
-    }
-    
-    /* Order Card Responsive */
-    .order-header {
-        padding: 1.2rem 1.5rem;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .order-item {
-        padding: 1.2rem 1.5rem;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .item-image {
-        margin-right: 0;
-        align-self: center;
-    }
-    
-    .item-details {
-        text-align: center;
-        width: 100%;
-    }
-    
-    .item-quantity-price {
-        justify-content: center;
-        gap: 2rem;
-    }
-    
-    .order-footer {
-        padding: 1.2rem 1.5rem;
-    }
-    
-    .total-amount {
-        font-size: 1.2rem;
-    }
+.review-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 600px;
+    width: 90%;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
 }
 
-@media (max-width: 480px) {
-    .profile-picture {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .profile-details h1 {
-        font-size: 1.8rem;
-    }
-    
-    .profile-subtitle {
-        font-size: 1rem;
-    }
-    
-    .menu-link {
-        padding: 1rem;
-    }
-    
-    .menu-link .fa-solid:first-child {
-        margin-right: 0.8rem;
-    }
-    
-    /* Order Card Mobile */
-    .order-header {
-        padding: 1rem;
-    }
-    
-    .order-info h3.order-id {
-        font-size: 1.1rem;
-    }
-    
-    .order-date {
-        font-size: 0.8rem;
-    }
-    
-    .status-badge {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.7rem;
-    }
-    
-    .order-item {
-        padding: 1rem;
-    }
-    
-    .product-image,
-    .placeholder-image {
-        width: 50px;
-        height: 50px;
-    }
-    
-    .item-name {
-        font-size: 1rem;
-    }
-    
-    .order-footer {
-        padding: 1rem;
-    }
-    
-    .total-label {
-        font-size: 1rem;
-    }
-    
-    .total-amount {
-        font-size: 1.1rem;
-    }
+.review-modal::backdrop {
+    background: rgba(0, 0, 0, 0.6);
 }
 
+.modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    align-self: center;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px 24px;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h4 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.close-modal:hover {
+    transform: scale(1.1);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-body .form-group label {
+    display: block;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.modal-body .form-control {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.modal-body .form-control:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.modal-body textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-body .rating-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-body .rating-option {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modal-body .rating-option:hover {
+    border-color: #667eea;
+    background: #f9fafb;
+}
+
+.modal-body .rating-option input[type="radio"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.modal-body .rating-option label {
+    margin: 0;
+    cursor: pointer;
+    flex: 1;
+    font-weight: 500;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-body .rating-stars {
+    color: #fbbf24;
+    font-size: 1rem;
+}
+
+.modal-body .form-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    background: #f9fafb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.modal-footer .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+}
+
+.modal-footer .btn-secondary {
+    background: #6b7280;
+    color: #ffffff;
+}
+
+.modal-footer .btn-secondary:hover {
+    background: #4b5563;
+}
+
+.modal-footer .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+}
+
+.modal-footer .btn-primary:hover {
+    transform: translateY(-2px);
+}
+
+.order-message {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+}

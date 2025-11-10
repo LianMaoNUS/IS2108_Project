@@ -2,13 +2,12 @@ from django.shortcuts import render, redirect
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.contrib.auth import login, authenticate, logout
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from .models import Customer
-from admin_panel.models import Product, Category ,Order, OrderItem
+from admin_panel.models import Product, Category ,Order, OrderItem, Review
 from django.views import View
-from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm, ForgotPasswordForm, ResetPasswordForm
+from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm, ForgotPasswordForm, ResetPasswordForm, ReviewForm
 from django.contrib.auth.hashers import check_password
 import pandas as pd
 import joblib
@@ -18,6 +17,7 @@ from django.http import JsonResponse
 import uuid
 from datetime import datetime
 from django.db.models import Case, When, Value, IntegerField
+from admin_panel.forms import ReviewForm
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -480,7 +480,7 @@ class product_detailview(View):
             is_in_cart = sku in cart
             
             cart_added = request.GET.get('cart_added') == 'true' or is_in_cart
-         
+            
             context = {
                 'product': product,
                 'recommended_products': recommended_products,
@@ -488,7 +488,6 @@ class product_detailview(View):
                 'profile_picture': request.session.get('customer_profile_picture'),
                 'cart_count': get_cart_count(request),
                 'cart_added': cart_added,
-                
             }
             context.update(currency_context)
             
@@ -505,6 +504,7 @@ class product_detailview(View):
             context.update(currency_context)
             
             return render(request, self.template_name, context)
+    
 
 class cartview(View):   
     template_name = 'customer_website/cart.html'
@@ -563,6 +563,7 @@ class cartview(View):
             request.session['cart'] = cart
             request.session.modified = True
             return redirect('cart')
+        
         cart_items = []
         subtotal = 0
         
@@ -586,10 +587,8 @@ class cartview(View):
         total = subtotal + shipping
 
         item_list_sku = list(cart.keys())
-        print(item_list_sku)
         recommended_products_sku = get_recommendations(item_list_sku, metric='lift', top_n=5)
         recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
-        print(recommended_products_sku)
             
         if not recommended_products.exists():
             preferred_category = request.session.get('preferred_category', None)
@@ -612,7 +611,7 @@ class cartview(View):
         context.update(currency_context)
         
         return render(request, self.template_name, context)
-    
+
 class all_productsview(View):
     template_name = 'customer_website/products.html'
 
@@ -706,12 +705,11 @@ class search_ajax_view(View):
         products_list = Product.objects.none()
         
         if search_query and len(search_query) >= 1: 
-            products_list = Product.objects.filter(product_name__icontains=search_query)  # Show all results
+            products_list = Product.objects.filter(product_name__icontains=search_query)
         
         currency_context = get_currency_context(request)
         convert_product_prices(products_list, currency_context['currency_info'])
         
-        from django.http import JsonResponse
         results = []
         for product in products_list:
             results.append({
@@ -779,21 +777,13 @@ class checkout_page(View):
         currency_context = get_currency_context(request)
 
         if checkout_form.is_valid():
-            
             order_result = self._process_order(request, checkout_form.cleaned_data, cart_items, totals)
             
             if order_result['success']:
-                # Clear the cart
                 request.session['cart'] = {}
                 request.session.modified = True
                 
-                messages.success(request, f'Order placed successfully! Order ID: {order_result["order_id"]}')
                 return redirect('order_confirmation', order_id=order_result['order_id'])
-            else:
-                print(order_result['error'])
-                messages.error(request, order_result['error'])
-        else:
-            messages.error(request, 'Please correct the errors below.')
 
         context = {
             'cart_items': cart_items,
@@ -829,12 +819,9 @@ class checkout_page(View):
                 'product_image': item_data.get('product_image')
             })
             subtotal += item_total
-        
-        # Calculate shipping, tax, and total
+  
         shipping_base = Decimal('5.00') if subtotal > 0 else Decimal('0.00')
         shipping = convert_cart_prices(shipping_base, currency_context['currency_info']) if shipping_base > 0 else Decimal('0.00')
-        
-        # Tax calculation (8% GST)
         tax_rate = Decimal('0.08')
         tax_amount = subtotal * tax_rate
         
@@ -853,27 +840,23 @@ class checkout_page(View):
             username = request.session.get('customer_username')
             customer = Customer.objects.get(username=username)
 
-            # Get currency info to convert back to SGD
             currency_context = get_currency_context(request)
             currency_rate = currency_context['currency_info']['rate']
             
-            # Convert total back to SGD for database storage
             total_in_sgd = (totals['total'] / currency_rate).quantize(Decimal('0.01'))
 
             order = Order.objects.create(
                 customer=customer,
-                status= 'PENDING',
+                status='PENDING',
                 shipping_address=f"{form_data['address']}, {form_data['city']}, {form_data['postal_code']}, {form_data['country']}",
                 order_notes=form_data.get('order_notes', ''),
                 total_amount=total_in_sgd,
                 order_date=datetime.now()
             )
 
-            # Create order items
             for item in cart_items:
                 try:
                     product = Product.objects.get(sku=item['sku'])
-                    # Convert price back to SGD for database storage
                     price_in_sgd = (item['unit_price'] / currency_rate).quantize(Decimal('0.01'))
                     
                     OrderItem.objects.create(
@@ -892,7 +875,7 @@ class checkout_page(View):
             
             return {
                 'success': True,
-                'order_id': order
+                'order_id': order.order_id
             }
                 
         except Customer.DoesNotExist:
@@ -915,20 +898,17 @@ class order_confirmation_page(View):
             
             username = request.session.get('customer_username')
             if not username or order.customer.username != username:
-                messages.error(request, 'Order not found or access denied.')
                 return redirect('customer_home')
 
             order_items = OrderItem.objects.filter(order_id=order)
             currency_context = get_currency_context(request)
             
-            # Convert prices from SGD to selected currency
             order_total = Decimal('0.00')
             for item in order_items:
                 item.converted_price = convert_cart_prices(item.price_at_purchase, currency_context['currency_info'])
                 item.item_total = item.converted_price * item.quantity
                 order_total += item.item_total
             
-            # Convert order total amount
             order.converted_total = convert_cart_prices(order.total_amount, currency_context['currency_info'])
 
             context = {
@@ -944,9 +924,7 @@ class order_confirmation_page(View):
             return render(request, self.template_name, context)
             
         except Order.DoesNotExist:
-            messages.error(request, 'Order not found.')
             return redirect('customer_home')
-
 
 class profile_page(View):
     template_name = 'customer_website/profile.html'
@@ -981,7 +959,6 @@ class profile_page(View):
             customer_orders = customer_orders.order_by('-order_date')
 
         if request.GET.get('logout') == 'true':
-            # Clear only customer session keys
             request.session.pop('customer_hasLogin', None)
             request.session.pop('customer_username', None)
             request.session.pop('customer_profile_picture', None)
@@ -999,8 +976,24 @@ class profile_page(View):
                 item.converted_price = convert_cart_prices(item.price_at_purchase, currency_context['currency_info'])
                 item_total = item.converted_price * item.quantity
                 order_total += item_total
+                
+                # Check if customer has already reviewed this product
+                existing_review = Review.objects.filter(
+                    product=item.product,
+                    customer=customer
+                ).first()
+                
+                if existing_review:
+                    item.existing_review = existing_review
+                else:
+                    item.existing_review = None
+                    
             order.converted_total = order_total
-            order.processed_items = order_items 
+            order.processed_items = order_items
+        
+        # Create review form instance
+        review_form = ReviewForm()
+
         
         context = {
             'customer': customer,
@@ -1009,9 +1002,64 @@ class profile_page(View):
             'cart_count': get_cart_count(request),
             'customer_orders': customer_orders,
             'current_sort': sort_by,
+            'review_form': review_form,
         }
         context.update(currency_context)
         return render(request, self.template_name, context)
+    
+    def post(self, request, *args, **kwargs):
+        username = request.session.get('customer_username')
+        if not username:
+            return redirect('login')
+        
+        try:
+            customer = Customer.objects.get(username=username)
+
+            product_sku = request.POST.get('product_sku')
+            if not product_sku:
+                return redirect('profile')
+            
+            product = Product.objects.get(sku=product_sku)
+            
+            has_purchased = OrderItem.objects.filter(
+                order_id__customer=customer,
+                order_id__status='COMPLETED',
+                product=product
+            ).exists()
+            
+            if not has_purchased:
+                return redirect('profile')
+            
+            form = ReviewForm(request.POST)
+            
+            if form.is_valid():
+                review = form.save(commit=False)
+                review.product = product
+                review.customer = customer
+                
+                existing_review = Review.objects.filter(
+                    product=product,
+                    customer=customer
+                ).first()
+                
+                if existing_review:
+                    existing_review.review_title = review.review_title
+                    existing_review.review_content = review.review_content
+                    existing_review.rating = review.rating
+                    existing_review.save()
+                else:
+                    review.save()
+                
+                return redirect('profile')
+            else:
+                return redirect('profile')
+                
+        except Customer.DoesNotExist:
+            return redirect('login')
+        except Product.DoesNotExist:
+            return redirect('profile')
+        except Exception as e:
+            return redirect('profile')
 
 
 class about_us_view(View):
@@ -1073,13 +1121,9 @@ AuroraMart Team'''
                 return render(request, self.template_name, {'form': form,'message': f'Password reset link has been sent to {customer.email}'})
             
             except Exception as e:
-                
                 return render(request, self.template_name, {'form': form, 'error_message': f'Error sending email: {str(e)}'})        
         else:
-            #print form not valid error
             print("not sending...")
-            
-    
         
         return render(request, self.template_name, {'form': form, 'error_message': error_check(form.errors.values())})
 
@@ -1090,7 +1134,6 @@ class ResetPasswordView(View):
     def get(self, request, username):
         # Check if user has valid reset session
         if not request.session.get(f'password_reset_{username}'):
-            messages.error(request, 'Invalid or expired reset link.')
             return redirect('login')
         
         try:
@@ -1098,13 +1141,11 @@ class ResetPasswordView(View):
             form = ResetPasswordForm()
             return render(request, self.template_name, {'form': form, 'username': username})
         except Customer.DoesNotExist:
-            messages.error(request, 'Invalid reset link.')
             return redirect('login')
     
     def post(self, request, username):
         # Check if user has valid reset session
         if not request.session.get(f'password_reset_{username}'):
-            messages.error(request, 'Invalid or expired reset link.')
             return redirect('login')
         
         try:
@@ -1133,5 +1174,4 @@ class ResetPasswordView(View):
                 'error_message': error_check(form.errors.values())
             })
         except Customer.DoesNotExist:
-            messages.error(request, 'Invalid reset link.')
             return redirect('login')
