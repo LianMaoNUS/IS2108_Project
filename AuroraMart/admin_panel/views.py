@@ -11,6 +11,8 @@ from django.views import View
 from django.db.models import Sum, F
 from django.http import JsonResponse
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .forms import AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
 from AuroraMart.models import User 
@@ -398,17 +400,25 @@ class dashboardview(View):
             try:
                 instance_id = self.request.GET.get('id')
                 form_instance = model.objects.get(pk=instance_id)
+                
+                # Store old status for comparison (only for Order updates)
+                old_status = form_instance.status if model == Order else None
+                
             except model.DoesNotExist:
                 context = self._get_context_data(error_message=["Item to update not found."])
                 return render(request, self.template_name, context)
         else:
-
             form_class = self.config['form']
 
         form = form_class(request.POST, instance=form_instance)
 
         if form.is_valid():
-            saved_instance = form.save() 
+            saved_instance = form.save()
+            
+            if model == Order and action == 'Update':
+                new_status = saved_instance.status
+                if old_status != 'COMPLETED' and new_status == 'COMPLETED':
+                    self._send_order_completed_email(saved_instance)
             
             if admin_update:
                 # Update session with current values from the saved instance
@@ -424,6 +434,154 @@ class dashboardview(View):
                 admin_details=admin_update 
             )
             return render(request, self.template_name, context)
+
+    def _send_order_completed_email(self, order):
+        try:
+            customer = order.customer
+            order_items = order.items.all()
+
+            items_text = ""
+            for item in order_items:
+                items_text += f"- {item.product.product_name} x {item.quantity} @ ${item.price_at_purchase}\n"
+            
+            subject = f"Order #{order.order_id} Completed - AuroraMart"
+            
+            message = f"""
+Hello {customer.username},
+
+Great news! Your order has been completed and is ready for delivery.
+
+Order Details:
+--------------
+Order ID: {order.order_id}
+Order Date: {order.order_date.strftime('%B %d, %Y at %I:%M %p')}
+Total Amount: ${order.total_amount}
+
+Items Ordered:
+{items_text}
+
+Shipping Address:
+{order.shipping_address}
+
+Your order will be delivered soon. Thank you for shopping with AuroraMart!
+
+If you have any questions about your order, please don't hesitate to contact us.
+
+Best regards,
+The AuroraMart Team
+
+---
+This is an automated email. Please do not reply to this message.
+            """
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'auroramart456@gmail.com'),
+                recipient_list=[customer.email],
+                fail_silently=True, 
+            )
+            
+        except Exception as e:
+            # Log the error but don't prevent the order update
+            print(f"Failed to send order completion email: {str(e)}")
+
+def send_inactive_customer_emails(request):
+    """
+    Send promotional emails to customers who haven't ordered in a while,
+    personalized based on their preferred category.
+    Limited to 5 customers for testing purposes.
+    """
+    if request.method == 'POST':
+        try:
+            # Calculate date threshold (e.g., 30 days ago)
+            thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
+            
+            # Find customers who haven't ordered in the last 30 days
+            # or have never ordered
+            inactive_customers = Customer.objects.exclude(
+                orders__order_date__gte=thirty_days_ago
+            ).distinct()[:5]  # Limit to 5 for testing
+            
+            sent_count = 0
+            failed_emails = []
+            
+            for customer in inactive_customers:
+                try:
+                    # Personalize message based on preferred category
+                    preferred_category = customer.preferred_category or "our products"
+                    
+                    subject = f"We Miss You at AuroraMart, {customer.username}!"
+                    
+                    message = f"""
+Hello {customer.username},
+
+We noticed you haven't visited AuroraMart in a while, and we miss you!
+
+We have exciting new products in {preferred_category} that we think you'll love.
+
+Special Offer: Use code WELCOME10 for 10% off your next purchase in the {preferred_category} category!
+
+Don't miss out on:
+• Fresh arrivals in {preferred_category}
+• Exclusive deals tailored just for you
+• Fast and reliable shipping
+
+Visit us today: {request.build_absolute_uri('/')}
+
+Best regards,
+The AuroraMart Team
+
+---
+If you no longer wish to receive these emails, please contact us.
+                    """
+                    
+                    send_mail(
+                        subject=subject,
+                        message=message,
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@auroramart.com'),
+                        recipient_list=[customer.email],
+                        fail_silently=False,
+                    )
+                    
+                    sent_count += 1
+                    
+                except Exception as e:
+                    failed_emails.append(f"{customer.email}: {str(e)}")
+            
+            # Return success response
+            success_message = f"Successfully sent {sent_count} email(s) to inactive customers."
+            if failed_emails:
+                success_message += f" Failed: {', '.join(failed_emails)}"
+            
+            return JsonResponse({
+                'success': True,
+                'message': success_message,
+                'sent_count': sent_count,
+                'failed_count': len(failed_emails)
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f"Error sending emails: {str(e)}"
+            }, status=500)
+    
+    # GET request - show confirmation page
+    thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
+    inactive_customers = Customer.objects.exclude(
+        orders__order_date__gte=thirty_days_ago
+    ).distinct()[:5]
+    
+    context = {
+        'username': request.session.get("admin_username"),
+        'user_role': request.session.get("admin_role"),
+        'profile_picture': request.session.get("admin_profile_picture"),
+        'inactive_customers': inactive_customers,
+        'customer_count': inactive_customers.count()
+    }
+    
+    return render(request, 'admin_panel/send_emails.html', context)
 
 def get_subcategories(request):
     category_id = request.GET.get('category_id')
