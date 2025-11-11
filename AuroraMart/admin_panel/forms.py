@@ -152,7 +152,8 @@ class ProductForm(forms.ModelForm):
         self.fields['category'].empty_label = "Select a main category"
         self.fields['category'].widget.attrs.update({
             'id': 'id_category',
-            'class': 'form-control category-selector'
+            'class': 'form-control category-selector',
+            'onchange': 'categoryChanged(this.value)'
         })
 
         if self.data and self.data.get('category'):
@@ -229,13 +230,11 @@ class CustomerForm(forms.ModelForm):
         password = cleaned_data.get('password')
         password_check = cleaned_data.get('password_check')
 
-        # Only validate password if a new one is provided
         if password:
             password_status = check_password(password, password_check)
             if password_status != "Valid":
                 self.add_error('password_check', password_status)
         else:
-            # If no password provided, remove it from cleaned_data to prevent overwriting
             cleaned_data.pop('password', None)
             cleaned_data.pop('password_check', None)
         

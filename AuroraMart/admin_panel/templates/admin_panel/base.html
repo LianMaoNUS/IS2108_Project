@@ -1,0 +1,99 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AuroraMart Admin Panel{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'admin_panel/css/base.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Side Navigation Bar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2><img src="{% static 'admin_panel/Logo.png' %}" alt="AuroraMart Logo" class="sidebar-logo"></h2>
+            <p class="admin-role">{{ user_role|default:"Admin" }}</p>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{% url 'admin_dashboard' %}?type=dashboard" class="{% if type == 'dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_list' %}?type=products" class="{% if type == 'products' %}active{% endif %}">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_list' %}?type=customers" class="{% if type == 'customers' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_list' %}?type=orders" class="{% if type == 'orders' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Orders</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_list' %}?type=categories" class="{% if type == 'categories' %}active{% endif %}">
+                    <i class="fas fa-tags"></i>
+                    <span>Categories</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_list' %}?type=orderitem" class="{% if type == 'orderitem' %}active{% endif %}">
+                    <i class="fas fa-list"></i>
+                    <span>Order Items</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="{% url 'admin_profile' %}" class="sidebar-link">
+                <i class="fas fa-user-cog"></i>
+                <span>Profile Settings</span>
+            </a>
+            <a href="{% url 'admin_logout' %}?logout=true" class="sidebar-link logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Header Bar -->
+        <header class="top-header">
+            <div class="header-left">
+                <h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            </div>
+            <div class="header-right">
+                <div class="admin-profile">
+                    {% if profile_picture %}
+                        <img src="{{ profile_picture }}" alt="Admin" class="profile-pic">
+                    {% else %}
+                        <i class="fas fa-user-circle profile-icon"></i>
+                    {% endif %}
+                    <span class="admin-name">{{ username }}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script src="{% static 'admin_panel/js/base.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

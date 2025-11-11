@@ -466,6 +466,7 @@ class product_detailview(View):
                 return redirect(redirect_url)
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
+            print("sku list",sku, "Recommended SKUs:", recommended_products_sku)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
             
             if not recommended_products.exists():

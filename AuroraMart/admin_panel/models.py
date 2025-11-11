@@ -35,7 +35,6 @@ class Category(models.Model):
         null=True, 
         blank=True, 
         related_name='subcategories',
-        help_text='Leave blank for main categories, select a parent for subcategories'
     )
 
     def __str__(self):
@@ -77,23 +76,20 @@ class Product(models.Model):
     product_image = models.URLField(
         max_length=500,
         default='https://cdn.mmem.com.au/media/catalog/product/placeholder/default/product-image.jpg',
-        help_text='Product image URL'
     )
     category = models.ForeignKey(
         Category, 
         on_delete=models.SET_NULL, 
         null=True, 
-        blank=True, 
+        blank=False, 
         related_name='products',
-        help_text='Can be assigned to either main category or subcategory'
     )
     subcategory = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True,
+        blank=False,
         related_name='subcategory_products',
-        help_text='Select a subcategory if applicable'
     )
 
     def __str__(self):
@@ -115,8 +111,7 @@ class Review(models.Model):
     review_content = models.TextField()
     rating = models.IntegerField(
         choices=RATING_CHOICES,
-        default=5,
-        help_text='Rating from 1 to 5 stars'
+        default=5
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -134,7 +129,6 @@ class Review(models.Model):
         self.update_product_rating()
 
     def update_product_rating(self):
-        """Update the product's average rating based on all reviews"""
         avg_rating = self.product.reviews.aggregate(Avg('rating'))['rating__avg']
         if avg_rating:
             self.product.product_rating = round(avg_rating, 1)

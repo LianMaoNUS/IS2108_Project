@@ -1,10 +1,11 @@
 from django.urls import path
-from . import views
+from .views import AdminDashboardView, AdminTableView, loginview, logoutview, profileSettingsView, signupview
 
 urlpatterns = [
-    path('', views.loginview.as_view(), name='admin_login'),
-    path('login/', views.loginview.as_view(), name='admin_login'),
-    path('signup/', views.signupview.as_view(), name='admin_signup'),
-    path('admin_panel/', views.dashboardview.as_view(), name='admin_dashboard'),
-    path('ajax/get-subcategories/', views.get_subcategories, name='get_subcategories'),
+    path('login/', loginview.as_view(), name='admin_login'),
+    path('signup/', signupview.as_view(), name='admin_signup'),
+    path('', AdminDashboardView.as_view(), name='admin_dashboard'),        # main dashboard
+    path('list/', AdminTableView.as_view(), name='admin_list'), 
+    path('logout/', logoutview, name='admin_logout'),
+    path('profile/', profileSettingsView.as_view(), name='admin_profile'),
 ]

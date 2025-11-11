@@ -7,7 +7,10 @@ class AdminAuthMiddleware:
 
     def __call__(self, request):
         
-        if request.path.startswith(reverse('admin_dashboard')):
+        if (request.path.startswith(reverse('admin_dashboard')) or \
+           request.path.startswith(reverse('admin_list'))) and \
+           not request.path.startswith(reverse('admin_login')) and \
+           not request.path.startswith(reverse('admin_signup')):
             if not request.session.get('admin_hasLogin'):
                 return redirect('admin_login')
             

@@ -1,0 +1,52 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}Profile Settings - AuroraMart Admin{% endblock %}
+
+{% block page_heading %}Profile Settings{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/profile_settings.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-content">
+    <!-- Profile Details Section -->
+    <div class="card profile-details-card">
+        <div class="card-header">
+            <h3><i class="fas fa-user-edit"></i> Personal Information</h3>
+        </div>
+        <div class="card-body">
+            {% if form %}
+                <form method="post" class="profile-form">
+                    {% csrf_token %}
+                    <div class="form-grid">
+                        {% for field in form %}
+                        <div class="form-field">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="field-errors">
+                                    {% for error in field.errors %}
+                                        <span class="error-text">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="no-form-message">
+                    <p>Profile form not available.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

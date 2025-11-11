@@ -1,0 +1,159 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - AuroraMart Admin{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'admin_panel/css/main_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon revenue">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-details">
+            <h3>Total Revenue (This Month)</h3>
+            <p class="stat-value">${{ total_revenue_month|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon orders">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="stat-details">
+            <h3>Pending Orders</h3>
+            <p class="stat-value">{{ pending_orders_count }}</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon customers">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-details">
+            <h3>New Customers (This Month)</h3>
+            <p class="stat-value">{{ new_customers_month }}</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon average">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-details">
+            <h3>Average Order Value</h3>
+            <p class="stat-value">${{ average_order_value|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stock">
+            <i class="fas fa-box-open"></i>
+        </div>
+        <div class="stat-details">
+            <h3>Low Stock Items</h3>
+            <p class="stat-value">{{ low_stock_count }}</p>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon total-customers">
+            <i class="fas fa-user-friends"></i>
+        </div>
+        <div class="stat-details">
+            <h3>Total Customers</h3>
+            <p class="stat-value">{{ total_customers }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Tables Section -->
+<div class="dashboard-content">
+    <!-- Sales Chart -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <a id="chart-labels" style="display: none;">{{chart_labels|default:'[]'|safe}}</a>
+             <a id="chart-data" style="display: none;">{{chart_data|default:'[]'|safe}}</a>
+            <h3><i class="fas fa-chart-area"></i> Sales Trend (Last 30 Days)</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="salesChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Top Selling Products -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-trophy"></i> Top Selling Products (This Month)</h3>
+        </div>
+        <div class="card-body">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Units Sold</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in top_selling_products %}
+                    <tr>
+                        <td>{{ product.product__product_name }}</td>
+                        <td>{{ product.units_sold }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="text-center">No sales data available</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock"></i> Recent Orders</h3>
+        </div>
+        <div class="card-body">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td>{{ order.order_id }}</td>
+                        <td>{{ order.customer.username }}</td>
+                        <td>${{ order.total_value|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge badge-{{ order.status|lower }}">{{ order.get_status_display }}</span>
+                        </td>
+                        <td>{{ order.order_date|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No recent orders</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'admin_panel/js/main_dashboard.js' %}"></script>
+{% endblock %}

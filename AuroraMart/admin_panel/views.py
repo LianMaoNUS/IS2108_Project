@@ -79,6 +79,8 @@ class signupview(View):
         
         if form.is_valid():
             form.save() 
+            request.session['admin_username'] = form.cleaned_data['username']
+            request.session['admin_role'] = form.cleaned_data['role']
             return redirect('admin_login')
         else:
             return render(request, self.template_name, {
@@ -86,8 +88,83 @@ class signupview(View):
                 "error_message": error_check(form.errors.values())
             })
 
-class dashboardview(View):
-    template_name = 'admin_panel/dashboard.html'
+class AdminDashboardView(View):
+    template_name = 'admin_panel/main_dashboard.html'
+
+    def _get_dashboard_stats(self):
+        context = {}
+        now = timezone.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        thirty_days_ago = now - datetime.timedelta(days=30)
+        orders_this_month = Order.objects.filter(
+            order_date__gte=start_of_month, status='COMPLETED'
+        ).annotate(
+            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
+        )
+        total_revenue_month = orders_this_month.aggregate(total=Sum('total_value'))['total'] or 0
+        num_orders_month = orders_this_month.count()
+        average_order_value = total_revenue_month / num_orders_month if num_orders_month > 0 else 0
+
+        context['total_revenue_month'] = total_revenue_month
+        context['average_order_value'] = average_order_value
+
+        sales_trend = Order.objects.filter(
+            order_date__gte=thirty_days_ago, status='COMPLETED'
+        ).annotate(
+            date=F('order_date__date')
+        ).values('date').annotate(
+            daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'), default=0)
+        ).order_by('date')
+
+        chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
+        chart_data = [float(entry['daily_total']) for entry in sales_trend]
+        context['chart_labels'] = json.dumps(chart_labels or [])
+        context['chart_data'] = json.dumps(chart_data or [])
+        context['page_title'] = "Dashboard Overview"
+
+        try:
+            new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
+        except AttributeError: 
+            new_customers_month = "N/A"  
+        context['new_customers_month'] = new_customers_month
+        context['total_customers'] = Customer.objects.count()
+
+        low_stock_count = Product.objects.filter(quantity_on_hand__lt=F('reorder_quantity')).count()
+        context['low_stock_count'] = low_stock_count
+
+        top_products = OrderItem.objects.filter(
+            order_id__order_date__gte=start_of_month, order_id__status='COMPLETED'
+        ).values('product__product_name').annotate(
+            units_sold=Sum('quantity')
+        ).order_by('-units_sold')[:5]
+        context['top_selling_products'] = list(top_products)
+
+        pending_orders_count = Order.objects.filter(status='PENDING').count()
+        context['pending_orders_count'] = pending_orders_count
+        
+        context['recent_orders'] = Order.objects.annotate(
+            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
+        ).order_by('-order_date')[:5]
+
+        return context
+
+    def get(self, request, *args, **kwargs):
+        # render dashboard only
+        context = {
+            'username': request.session.get("admin_username"),
+            'user_role': request.session.get("admin_role"),
+            'profile_picture': request.session.get("admin_profile_picture"),
+        }
+        stats = self._get_dashboard_stats()
+        context.update(stats)
+        # show admin details modal if requested
+        show_modal = request.GET.get('modal') == 'true'
+        context['show_modal'] = show_modal
+        return render(request, self.template_name, context)
+
+
+class AdminTableView(View):
+    template_name = 'admin_panel/table_view.html'
     view_configs = {
         'dashboard': {
             'model': None, 'form': None, 'title': 'Dashboard Overview',
@@ -128,10 +205,12 @@ class dashboardview(View):
     }
 
     def dispatch(self, request, *args, **kwargs):
-        self.view_type = request.GET.get('type', 'dashboard')
+        self.view_type = request.GET.get('type', 'products')  # default to a sensible list type
         self.config = self.view_configs.get(self.view_type)
         if not self.config:
-            return redirect('admin_dashboard')
+            # fall back to 'products' if unknown
+            self.view_type = 'products'
+            self.config = self.view_configs[self.view_type]
         return super().dispatch(request, *args, **kwargs)
 
     def _get_queryset(self):
@@ -141,8 +220,6 @@ class dashboardview(View):
             queryset = model.objects.all()
 
         search_query = self.request.GET.get('search', '').strip()
-        
-        # Define search fields and their display labels
         search_fields = {
             'products': 'product_name',
             'customers': 'username',
@@ -150,7 +227,6 @@ class dashboardview(View):
             'categories': 'name',
             'orderitem': 'product__product_name'
         }
-        
         self.search_field_label = {
             'products': 'product name',
             'customers': 'username',
@@ -158,7 +234,7 @@ class dashboardview(View):
             'categories': 'category name',
             'orderitem': 'product name'
         }.get(self.view_type, 'field')
-        
+
         if search_query:
             search_field = search_fields.get(self.view_type)
             if search_field:
@@ -166,71 +242,13 @@ class dashboardview(View):
 
         fields = self.config['fields']
         sort_by = self.request.GET.get('sort_by', fields[0] if fields else None)
-        
+
         if sort_by and sort_by in fields:
             queryset = queryset.order_by(sort_by)
         return queryset
 
-    def _get_dashboard_stats(self):
-        context = {}
-        now = timezone.now()
-        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        thirty_days_ago = now - datetime.timedelta(days=30)
-        orders_this_month = Order.objects.filter(
-            order_date__gte=start_of_month, status='COMPLETED'
-        ).annotate(
-            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
-        )
-        total_revenue_month = orders_this_month.aggregate(total=Sum('total_value'))['total'] or 0
-        num_orders_month = orders_this_month.count()
-        average_order_value = total_revenue_month / num_orders_month if num_orders_month > 0 else 0
-
-        context['total_revenue_month'] = total_revenue_month
-        context['average_order_value'] = average_order_value
-
-        sales_trend = Order.objects.filter(
-            order_date__gte=thirty_days_ago, status='COMPLETED'
-        ).annotate(
-            date=F('order_date__date')
-        ).values('date').annotate(
-            daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'), default=0)
-        ).order_by('date')
-
-        chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
-        chart_data = [float(entry['daily_total']) for entry in sales_trend]
-        context['chart_labels'] = json.dumps(chart_labels or [])
-        context['chart_data'] = json.dumps(chart_data or [])
-
-        try:
-            new_customers_month = Customer.objects.filter(date_joined__gte=start_of_month).count()
-        except AttributeError: 
-            new_customers_month = "N/A"  
-        context['new_customers_month'] = new_customers_month
-        context['total_customers'] = Customer.objects.count()
-
-        low_stock_count = Product.objects.filter(quantity_on_hand__lt=F('reorder_quantity')).count()
-        context['low_stock_count'] = low_stock_count
-
-        top_products = OrderItem.objects.filter(
-            order_id__order_date__gte=start_of_month, order_id__status='COMPLETED'
-        ).values('product__product_name').annotate(
-            units_sold=Sum('quantity')
-        ).order_by('-units_sold')[:5]
-        context['top_selling_products'] = list(top_products)
-
-        pending_orders_count = Order.objects.filter(status='PENDING').count()
-        context['pending_orders_count'] = pending_orders_count
-        
-        context['recent_orders'] = Order.objects.annotate(
-            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
-        ).order_by('-order_date')[:5]
-
-        return context
-
     def _get_list_view_context(self):
-        context = {}
         queryset = self._get_queryset()
-        
         fields = self.config['fields']
         rows = self.request.GET.get('rows', '10')
         page_number = self.request.GET.get('page', 1)
@@ -248,7 +266,7 @@ class dashboardview(View):
 
         table_rows = [self.config['rows'](item) for item in page_obj]
 
-        context.update({
+        return {
             'fields': fields,
             'table_rows': table_rows,
             'sort_by': self.request.GET.get('sort_by', fields[0] if fields else None),
@@ -263,11 +281,9 @@ class dashboardview(View):
             'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
             'search_query': self.request.GET.get('search', ''),
             'search_field_label': getattr(self, 'search_field_label', 'field')
-        })
-        return context
+        }
 
     def _get_context_data(self, **kwargs):
-        """Builds the context dictionary for the template."""
         context = {
             'type': self.view_type,
             'page_title': self.config['title'],
@@ -277,80 +293,38 @@ class dashboardview(View):
             'admin_details': self.request.GET.get('admin_details') == 'true',
             'action': self.request.GET.get('action', '')
         }
-
-        if self.view_type == 'dashboard':
-            stats_context = self._get_dashboard_stats()
-            context.update(stats_context)
-        else:
-            list_context = self._get_list_view_context()
-            context.update(list_context)
-        
+        list_context = self._get_list_view_context()
+        context.update(list_context)
         context.update(kwargs)
         return context
 
     def _export_to_csv(self):
         response = HttpResponse(
             content_type='text/csv',
-            headers={
-                'Content-Disposition': f'attachment; filename="{self.view_type}_{datetime.date.today()}.csv"'
-            },
+            headers={'Content-Disposition': f'attachment; filename="{self.view_type}_{datetime.date.today()}.csv"'},
         )
         writer = csv.writer(response)
         queryset = self._get_queryset()
         fields = self.config['fields']
-        
         writer.writerow(fields)
         row_builder = self.config['rows']
-        
         for item in queryset:
             row_data = row_builder(item)
             processed_row = [cell if cell not in [None, ""] else "None" for cell in row_data]
             writer.writerow(processed_row)
-
         return response
-    
-    def _handle_admin_details_get(self):
-        try:
-            instance = Admin.objects.get(username=self.request.session["admin_username"])
-            form = AdminUpdateForm(instance=instance)
-            context = self._get_context_data(form=form, admin_details=True)
-            return render(self.request, self.template_name, context)
-        except Admin.DoesNotExist:
-            context = self._get_context_data(error_message=["Admin user not found."])
-            return render(self.request, self.template_name, context)
-        except KeyError:
-            context = self._get_context_data(error_message=["Session expired. Please login again."])
-            return render(self.request, self.template_name, context)
-        except Exception as e:
-            context = self._get_context_data(error_message=[f"An error occurred: {str(e)}"])
-            return render(self.request, self.template_name, context)
 
     def get(self, request, *args, **kwargs):
-        if self.request.GET.get('logout') == 'true':
-            request.session.pop('admin_hasLogin', None)
-            request.session.pop('admin_username', None)
-            request.session.pop('admin_role', None)
-            request.session.pop('admin_profile_picture', None)
-            return redirect('admin_login')
-        
-        if self.request.GET.get('admin_details') == 'true':
-            return self._handle_admin_details_get()
-        
-        # 3. Handle CSV Export
-        if self.request.GET.get('export') == 'csv' and self.view_type != 'dashboard':
+        # Handle CSV export
+        if request.GET.get('export') == 'csv':
             return self._export_to_csv()
 
-        # 4. Handle Dashboard View
-        if self.view_type == 'dashboard':
-            context = self._get_context_data()
-            return render(request, self.template_name, context)
-
-        # 5. Handle List Views (Products, Orders, etc.)
+        # Prepare form for Add/Update/Delete as in previous implementation.
         form_to_display = None
         model = self.config['model']
         form = self.config['form']
         action = request.GET.get('action')
-        
+
         if action == 'Update' and request.GET.get('id'):
             try:
                 instance = model.objects.get(pk=request.GET.get('id'))
@@ -358,52 +332,57 @@ class dashboardview(View):
                 if model is Customer:
                     form_to_display.fields['password'].widget.attrs['value'] = ''
                     form_to_display.fields['password_check'].widget.attrs['value'] = ''
+                if request.GET.get('category'):
+                    category_id = request.GET.get('category')
+                    try:
+                        category = Category.objects.get(pk=category_id)
+                        if 'category' in form_to_display.fields:
+                            form_to_display.fields['category'].initial = category.pk
+                        if 'subcategory' in form_to_display.fields:
+                            form_to_display.fields['subcategory'].queryset = Category.objects.filter(parent_category=category)
+                    except Category.DoesNotExist:
+                        pass
             except model.DoesNotExist:
                 pass
-            except ValueError as e:
-                context = self._get_context_data(error_message=[f"Invalid ID format: {str(e)}"])
-                return render(request, self.template_name, context)
-            except Exception as e:
-                context = self._get_context_data(error_message=[f"Error loading record: {str(e)}"])
-                return render(request, self.template_name, context)
         elif action == 'Delete':
             try:
                 record_selector(request, model, 'delete')
             except Exception as e:
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
                 return render(request, self.template_name, context)
-            return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
+            # redirect back to list, preserving type
+            target_type = request.GET.get('type') or self.view_type or 'products'
+            return redirect(f"{reverse('admin_list')}?type={target_type}")
         else:
-            form_to_display = form
+            # Add - show empty form (allow ?category=... to preselect)
+            form_to_display = form()
+            if request.GET.get('category'):
+                category_id = request.GET.get('category')
+                try:
+                    category = Category.objects.get(pk=category_id)
+                    if 'category' in form_to_display.fields:
+                        form_to_display.fields['category'].initial = category.pk
+                    if 'subcategory' in form_to_display.fields:
+                        form_to_display.fields['subcategory'].queryset = Category.objects.filter(parent_category=category)
+                except Category.DoesNotExist:
+                    pass
 
         context = self._get_context_data(form=form_to_display)
+        context['show_modal'] = request.GET.get('modal') == 'true'
         return render(request, self.template_name, context)
-    
+
     def post(self, request, *args, **kwargs):
-        admin_update = self.request.GET.get('admin_details') == 'true'
         action = self.request.GET.get('action')
         model = self.config['model']
-        
         form_instance = None
         form_class = None
 
-        if admin_update:
-            try:
-                form_instance = Admin.objects.get(username=request.session["admin_username"])
-                form_class = AdminUpdateForm
-            except Admin.DoesNotExist:
-                context = self._get_context_data(error_message=["Admin user not found."])
-                return render(request, self.template_name, context)
-        
-        elif action == 'Update':
+        if action == 'Update':
             form_class = self.config['form']
             try:
                 instance_id = self.request.GET.get('id')
                 form_instance = model.objects.get(pk=instance_id)
-                
-                # Store old status for comparison (only for Order updates)
                 old_status = form_instance.status if model == Order else None
-                
             except model.DoesNotExist:
                 context = self._get_context_data(error_message=["Item to update not found."])
                 return render(request, self.template_name, context)
@@ -414,25 +393,11 @@ class dashboardview(View):
 
         if form.is_valid():
             saved_instance = form.save()
-            
-            if model == Order and action == 'Update':
-                new_status = saved_instance.status
-                if old_status != 'COMPLETED' and new_status == 'COMPLETED':
-                    self._send_order_completed_email(saved_instance)
-            
-            if admin_update:
-                # Update session with current values from the saved instance
-                request.session['admin_username'] = saved_instance.username
-                request.session['admin_role'] = saved_instance.role
-                request.session['admin_profile_picture'] = str(saved_instance.profile_picture) if saved_instance.profile_picture else None
-
-            return redirect(f"{reverse('admin_dashboard')}?type={self.view_type}")
+            if model == Order and action == 'Update' and old_status != 'COMPLETED' and saved_instance.status == 'COMPLETED':
+                self._send_order_completed_email(saved_instance)
+            return redirect(f"{reverse('admin_list')}?type={self.view_type}")
         else:
-            context = self._get_context_data(
-                form=form, 
-                error_message=error_check(form.errors.values()),
-                admin_details=admin_update 
-            )
+            context = self._get_context_data(form=form, error_message=error_check(form.errors.values()))
             return render(request, self.template_name, context)
 
     def _send_order_completed_email(self, order):
@@ -483,119 +448,48 @@ This is an automated email. Please do not reply to this message.
             )
             
         except Exception as e:
-            # Log the error but don't prevent the order update
             print(f"Failed to send order completion email: {str(e)}")
 
-def send_inactive_customer_emails(request):
-    """
-    Send promotional emails to customers who haven't ordered in a while,
-    personalized based on their preferred category.
-    Limited to 5 customers for testing purposes.
-    """
-    if request.method == 'POST':
+class profileSettingsView(View):
+    template_name = 'admin_panel/profile_settings.html'
+    form_class = AdminUpdateForm
+    def get(self, request, *args, **kwargs):
+        username = request.session.get("admin_username")
         try:
-            # Calculate date threshold (e.g., 30 days ago)
-            thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
-            
-            # Find customers who haven't ordered in the last 30 days
-            # or have never ordered
-            inactive_customers = Customer.objects.exclude(
-                orders__order_date__gte=thirty_days_ago
-            ).distinct()[:5]  # Limit to 5 for testing
-            
-            sent_count = 0
-            failed_emails = []
-            
-            for customer in inactive_customers:
-                try:
-                    # Personalize message based on preferred category
-                    preferred_category = customer.preferred_category or "our products"
-                    
-                    subject = f"We Miss You at AuroraMart, {customer.username}!"
-                    
-                    message = f"""
-Hello {customer.username},
-
-We noticed you haven't visited AuroraMart in a while, and we miss you!
-
-We have exciting new products in {preferred_category} that we think you'll love.
-
-Special Offer: Use code WELCOME10 for 10% off your next purchase in the {preferred_category} category!
-
-Don't miss out on:
-• Fresh arrivals in {preferred_category}
-• Exclusive deals tailored just for you
-• Fast and reliable shipping
-
-Visit us today: {request.build_absolute_uri('/')}
-
-Best regards,
-The AuroraMart Team
-
----
-If you no longer wish to receive these emails, please contact us.
-                    """
-                    
-                    send_mail(
-                        subject=subject,
-                        message=message,
-                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@auroramart.com'),
-                        recipient_list=[customer.email],
-                        fail_silently=False,
-                    )
-                    
-                    sent_count += 1
-                    
-                except Exception as e:
-                    failed_emails.append(f"{customer.email}: {str(e)}")
-            
-            # Return success response
-            success_message = f"Successfully sent {sent_count} email(s) to inactive customers."
-            if failed_emails:
-                success_message += f" Failed: {', '.join(failed_emails)}"
-            
-            return JsonResponse({
-                'success': True,
-                'message': success_message,
-                'sent_count': sent_count,
-                'failed_count': len(failed_emails)
-            })
-            
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f"Error sending emails: {str(e)}"
-            }, status=500)
-    
-    # GET request - show confirmation page
-    thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
-    inactive_customers = Customer.objects.exclude(
-        orders__order_date__gte=thirty_days_ago
-    ).distinct()[:5]
-    
-    context = {
-        'username': request.session.get("admin_username"),
-        'user_role': request.session.get("admin_role"),
-        'profile_picture': request.session.get("admin_profile_picture"),
-        'inactive_customers': inactive_customers,
-        'customer_count': inactive_customers.count()
-    }
-    
-    return render(request, 'admin_panel/send_emails.html', context)
-
-def get_subcategories(request):
-    category_id = request.GET.get('category_id')
-    subcategories = []
-    
-    if category_id:
+            admin = Admin.objects.get(username=username)
+            form = self.form_class(instance=admin)
+            return render(request, self.template_name, {"form": form, 
+                'username': self.request.session.get("admin_username"),
+                'user_role': self.request.session.get("admin_role"),
+                'profile_picture': self.request.session.get("admin_profile_picture")
+                })
+        except Admin.DoesNotExist:
+            return redirect('admin_login')
+    def post(self, request, *args, **kwargs):
+        username = request.session.get("admin_username")
         try:
-            main_category = Category.objects.get(pk=category_id)
-            subcategories_qs = Category.objects.filter(parent_category=main_category)
-            subcategories = [
-                {'id': subcat.category_id, 'name': subcat.name} 
-                for subcat in subcategories_qs
-            ]
-        except Category.DoesNotExist:
-            pass
-    
-    return JsonResponse({'subcategories': subcategories})
+            admin = Admin.objects.get(username=username)
+            form = self.form_class(request.POST, instance=admin)
+            if form.is_valid():
+                form.save()
+                request.session['admin_profile_picture'] = str(admin.profile_picture) if admin.profile_picture else None
+                return redirect('admin_dashboard')
+            else:
+                return render(request, self.template_name, {
+                    "form": form, 
+                    "error_message": error_check(form.errors.values()),
+                    'username': self.request.session.get("admin_username"),
+                    'user_role': self.request.session.get("admin_role"),
+                    'profile_picture': self.request.session.get("admin_profile_picture"),
+                })
+        except Admin.DoesNotExist:
+            return redirect('admin_login')
+
+            
+def logoutview(request):
+    request.session.pop('admin_hasLogin', None)
+    request.session.pop('admin_username', None)
+    request.session.pop('admin_role', None)
+    request.session.pop('admin_profile_picture', None)
+    return redirect('admin_login')
+
