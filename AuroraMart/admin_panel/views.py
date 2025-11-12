@@ -14,10 +14,10 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .forms import AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm
+from .forms import AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm, CouponForm, CouponUsageForm
 from AuroraMart.models import User 
 from customer_website.models import Customer
-from admin_panel.models import Admin, Order, Category, Product, OrderItem
+from admin_panel.models import Admin, Order, Category, Product, OrderItem, Coupon, CouponUsage
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -81,7 +81,10 @@ class signupview(View):
             form.save() 
             request.session['admin_username'] = form.cleaned_data['username']
             request.session['admin_role'] = form.cleaned_data['role']
-            return redirect('admin_login')
+            return render(request, 'admin_panel/login.html', {
+                "form": AdminLoginForm(),
+                "success_message": "Signup successful! Please log in."
+            })
         else:
             return render(request, self.template_name, {
                 "form": form, 
@@ -149,7 +152,6 @@ class AdminDashboardView(View):
         return context
 
     def get(self, request, *args, **kwargs):
-        # render dashboard only
         context = {
             'username': request.session.get("admin_username"),
             'user_role': request.session.get("admin_role"),
@@ -157,9 +159,6 @@ class AdminDashboardView(View):
         }
         stats = self._get_dashboard_stats()
         context.update(stats)
-        # show admin details modal if requested
-        show_modal = request.GET.get('modal') == 'true'
-        context['show_modal'] = show_modal
         return render(request, self.template_name, context)
 
 
@@ -184,13 +183,13 @@ class AdminTableView(View):
         },
         'customers': {
             'model': Customer, 'form': CustomerForm, 'title': 'Customers',
-            'fields': ["customer_id", "username", "age", "gender", "employment_status", "occupation","education","household_size","has_children","monthly_income_sgd","email","preferred_category"],
-            'rows': lambda item: [item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation,item.education,item.household_size,item.has_children,item.monthly_income_sgd,item.email,item.preferred_category]
+            'fields': ["customer_id", "username", "age", "gender", "employment_status", "occupation","education","household_size","number_of_children","monthly_income_sgd","preferred_category"],
+            'rows': lambda item: [item.customer_id, item.username, item.age, item.gender, item.employment_status, item.occupation,item.education,item.household_size,item.number_of_children,item.monthly_income_sgd,item.preferred_category]
         },
         'orders': {
             'model': Order, 'form': OrderForm, 'title': 'Orders',
-            'fields': ["order_id", "customer", "status","shipping_address","total_amount"],
-            'rows': lambda item: [item.order_id, item.customer.username, item.status, item.shipping_address, item.total_amount]
+            'fields': ["order_id", "customer", "status","subtotal_amount","discount_amount","total_amount","coupon_code","shipping_address","customer_email"],
+            'rows': lambda item: [item.order_id, item.customer.username, item.status, item.subtotal_amount, item.discount_amount, item.total_amount, item.coupon_code or 'No coupon', item.shipping_address, item.customer_email]
         },
         'categories': {
             'model': Category, 'form': CategoryForm, 'title': 'Categories',
@@ -201,21 +200,44 @@ class AdminTableView(View):
             'model': OrderItem, 'form': OrderItemForm, 'title': 'Order Items',
             'fields': ["OrderItem_id", "order_id", "product"," quantity","price_at_purchase"],
             'rows': lambda item: [item.OrderItem_id, item.order_id.order_id, item.product.product_name, item.quantity,item.price_at_purchase]
+        },
+        'coupons': {
+            'model': Coupon, 'form': CouponForm, 'title': 'Coupons', 
+            'fields': ["coupon_id", "code", "discount_percentage", "valid_from", "valid_until", "usage_count", "usage_limit", "assigned_customers", "is_active"],
+            'rows': lambda item: [
+                item.coupon_id, 
+                item.code, 
+                item.discount_percentage, 
+                item.valid_from.strftime('%Y-%m-%d') if item.valid_from else 'N/A', 
+                item.valid_until.strftime('%Y-%m-%d') if item.valid_until else 'N/A', 
+                item.usage_count, 
+                item.usage_limit or 'Unlimited',
+                ', '.join([customer.username for customer in item.assigned_customers.all()]) if item.assigned_customers.exists() else 'All customers',
+                'Yes' if item.is_active else 'No'
+            ]
+        },
+        'couponusage': {
+            'model': CouponUsage, 'form': CouponUsageForm, 'title': 'Coupon Usage',
+            'fields': ["coupon_usage_id", "coupon", "customer", "order", "discount_amount", "used_at"],
+            'rows': lambda item: [item.coupon_usage_id, item.coupon.code, item.customer.username, item.order.order_id, f"${item.discount_amount}", item.used_at.strftime('%Y-%m-%d %H:%M') if item.used_at else 'N/A']
         }
     }
 
     def dispatch(self, request, *args, **kwargs):
-        self.view_type = request.GET.get('type', 'products')  # default to a sensible list type
+        self.view_type = request.GET.get('type', 'products') 
         self.config = self.view_configs.get(self.view_type)
         if not self.config:
-            # fall back to 'products' if unknown
             self.view_type = 'products'
             self.config = self.view_configs[self.view_type]
         return super().dispatch(request, *args, **kwargs)
 
     def _get_queryset(self):
         model = self.config['model']
-        queryset = record_selector(self.request, model, 'filter')
+        action = self.request.GET.get('action')
+        if action != 'Update':
+            queryset = record_selector(self.request, model, 'filter')
+        else:
+            queryset = None
         if queryset is None:
             queryset = model.objects.all()
 
@@ -225,14 +247,18 @@ class AdminTableView(View):
             'customers': 'username',
             'orders': 'status',
             'categories': 'name',
-            'orderitem': 'product__product_name'
+            'orderitem': 'product__product_name',
+            'coupons': 'code',
+            'couponusage': 'coupon__code'
         }
         self.search_field_label = {
             'products': 'product name',
             'customers': 'username',
             'orders': 'status',
             'categories': 'category name',
-            'orderitem': 'product name'
+            'orderitem': 'product name',
+            'coupons': 'coupon code',
+            'couponusage': 'coupon code'
         }.get(self.view_type, 'field')
 
         if search_query:
@@ -315,11 +341,9 @@ class AdminTableView(View):
         return response
 
     def get(self, request, *args, **kwargs):
-        # Handle CSV export
         if request.GET.get('export') == 'csv':
             return self._export_to_csv()
-
-        # Prepare form for Add/Update/Delete as in previous implementation.
+        
         form_to_display = None
         model = self.config['model']
         form = self.config['form']
@@ -329,9 +353,6 @@ class AdminTableView(View):
             try:
                 instance = model.objects.get(pk=request.GET.get('id'))
                 form_to_display = form(instance=instance)
-                if model is Customer:
-                    form_to_display.fields['password'].widget.attrs['value'] = ''
-                    form_to_display.fields['password_check'].widget.attrs['value'] = ''
                 if request.GET.get('category'):
                     category_id = request.GET.get('category')
                     try:
@@ -347,14 +368,13 @@ class AdminTableView(View):
         elif action == 'Delete':
             try:
                 record_selector(request, model, 'delete')
+                context = self._get_context_data(success_message=["Record(s) deleted successfully."])
             except Exception as e:
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
                 return render(request, self.template_name, context)
-            # redirect back to list, preserving type
             target_type = request.GET.get('type') or self.view_type or 'products'
-            return redirect(f"{reverse('admin_list')}?type={target_type}")
+            return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
         else:
-            # Add - show empty form (allow ?category=... to preselect)
             form_to_display = form()
             if request.GET.get('category'):
                 category_id = request.GET.get('category')
@@ -368,7 +388,10 @@ class AdminTableView(View):
                     pass
 
         context = self._get_context_data(form=form_to_display)
-        context['show_modal'] = request.GET.get('modal') == 'true'
+        success = request.GET.get('success')
+        if success:
+            context['success_message'] = [f"{success.capitalize()} completed successfully."]
+        context['show_modal'] = 'True' if action in ['Update', 'Add'] else 'False'
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
@@ -395,7 +418,7 @@ class AdminTableView(View):
             saved_instance = form.save()
             if model == Order and action == 'Update' and old_status != 'COMPLETED' and saved_instance.status == 'COMPLETED':
                 self._send_order_completed_email(saved_instance)
-            return redirect(f"{reverse('admin_list')}?type={self.view_type}")
+            return redirect(f"{reverse('admin_list')}?type={self.view_type}&success={action.lower()}")
         else:
             context = self._get_context_data(form=form, error_message=error_check(form.errors.values()))
             return render(request, self.template_name, context)
@@ -443,7 +466,7 @@ This is an automated email. Please do not reply to this message.
                 subject=subject,
                 message=message,
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'auroramart456@gmail.com'),
-                recipient_list=[customer.email],
+                recipient_list=[order.customer_email],
                 fail_silently=True, 
             )
             
@@ -453,37 +476,46 @@ This is an automated email. Please do not reply to this message.
 class profileSettingsView(View):
     template_name = 'admin_panel/profile_settings.html'
     form_class = AdminUpdateForm
+
+    def get_common_context(self, request):
+        return {
+            'username': request.session.get("admin_username"),
+            'user_role': request.session.get("admin_role"),
+            'profile_picture': request.session.get("admin_profile_picture")
+        }
+
     def get(self, request, *args, **kwargs):
         username = request.session.get("admin_username")
         try:
             admin = Admin.objects.get(username=username)
             form = self.form_class(instance=admin)
-            return render(request, self.template_name, {"form": form, 
-                'username': self.request.session.get("admin_username"),
-                'user_role': self.request.session.get("admin_role"),
-                'profile_picture': self.request.session.get("admin_profile_picture")
-                })
+            context = self.get_common_context(request)
+            context['form'] = form
+            return render(request, self.template_name, context)
         except Admin.DoesNotExist:
-            return redirect('admin_login')
+            return render(request, 'admin_panel/login.html')
+
     def post(self, request, *args, **kwargs):
         username = request.session.get("admin_username")
         try:
             admin = Admin.objects.get(username=username)
             form = self.form_class(request.POST, instance=admin)
+            context = self.get_common_context(request)
+            context['form'] = form
+
             if form.is_valid():
                 form.save()
-                request.session['admin_profile_picture'] = str(admin.profile_picture) if admin.profile_picture else None
-                return redirect('admin_dashboard')
+                request.session['admin_username'] = form.cleaned_data['username']
+                request.session['admin_role'] = form.cleaned_data['role']
+                context['success_message'] = ["Profile updated successfully."]
+                context['username'] = request.session.get("admin_username")
+                context['user_role'] = request.session.get("admin_role")
+                return render(request, self.template_name, context)
             else:
-                return render(request, self.template_name, {
-                    "form": form, 
-                    "error_message": error_check(form.errors.values()),
-                    'username': self.request.session.get("admin_username"),
-                    'user_role': self.request.session.get("admin_role"),
-                    'profile_picture': self.request.session.get("admin_profile_picture"),
-                })
+                context['error_message'] = error_check(form.errors.values())
+                return render(request, self.template_name, context)
         except Admin.DoesNotExist:
-            return redirect('admin_login')
+            return render(request, 'admin_panel/login.html')
 
             
 def logoutview(request):

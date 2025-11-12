@@ -1,7 +1,7 @@
 import re
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
-from admin_panel.models import Admin,Category,Product,Order,OrderItem
+from admin_panel.models import Admin,Category,Product,Order,OrderItem, Coupon, CouponUsage
 from customer_website.models import Customer
 from AuroraMart.models import User
 from .models import Review
@@ -148,6 +148,9 @@ class ProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        if self.instance.pk:
+            self.fields['sku'].disabled = True
+        
         self.fields['category'].queryset = Category.objects.filter(parent_category__isnull=True)
         self.fields['category'].empty_label = "Select a main category"
         self.fields['category'].widget.attrs.update({
@@ -196,22 +199,6 @@ class ProductForm(forms.ModelForm):
         return subcategory
 
 class CustomerForm(forms.ModelForm):
-    password = forms.CharField(
-        label="New Password (leave blank to keep current)",
-        required=False,
-        widget=forms.PasswordInput(attrs={
-            'placeholder': 'Enter new password (optional)',
-            'class': 'form-control'
-        })
-    )
-    password_check = forms.CharField(
-        label="Re-enter New Password",
-        required=False,
-        widget=forms.PasswordInput(attrs={
-            'placeholder': 'Re-enter new password',
-            'class': 'form-control'
-        })
-    )
     preferred_category = forms.ModelChoiceField(
         queryset=Category.objects.filter(parent_category__isnull=True),
         required=False,
@@ -223,22 +210,7 @@ class CustomerForm(forms.ModelForm):
 
     class Meta:
         model = Customer
-        fields  = ['username', 'password', 'password_check', 'age','gender','employment_status','occupation','education','household_size','has_children','monthly_income_sgd','email','preferred_category']
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        password_check = cleaned_data.get('password_check')
-
-        if password:
-            password_status = check_password(password, password_check)
-            if password_status != "Valid":
-                self.add_error('password_check', password_status)
-        else:
-            cleaned_data.pop('password', None)
-            cleaned_data.pop('password_check', None)
-        
-        return cleaned_data
+        fields  = ['username', 'age','gender','employment_status','occupation','education','household_size','number_of_children','monthly_income_sgd','preferred_category']
 
 
 class OrderForm(forms.ModelForm):
@@ -285,3 +257,182 @@ class ReviewForm(forms.ModelForm):
             'review_content': 'Your Review',
             'rating': 'Rating'
         }
+
+class CouponForm(forms.ModelForm):
+    APPLICABLE_CHOICES = [
+        ('', 'All Categories'),
+    ]
+    
+    applicable_categories = forms.ChoiceField(
+        choices=APPLICABLE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        help_text="Select a main category or choose 'All Categories'"
+    )
+    
+    assigned_customers = forms.ChoiceField(
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        help_text="Select 'All Customers' or choose a specific customer to assign this coupon to"
+    )
+    
+    class Meta:
+        model = Coupon
+        fields = ['code', 'description', 'discount_percentage', 'minimum_order_value', 
+                 'maximum_discount', 'valid_from', 'valid_until', 'usage_limit', 'is_active', 
+                 'applicable_categories']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., SAVE20, WELCOME10'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional description of the coupon'
+            }),
+            'discount_percentage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'max': '100'
+            }),
+            'minimum_order_value': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'maximum_discount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'valid_from': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'valid_until': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'usage_limit': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0'
+            }),
+            'is_active': forms.Select(
+                choices=[(True, 'Yes'), (False, 'No')],
+                attrs={'class': 'form-control'}
+            )
+        }
+        labels = {
+            'code': 'Coupon Code',
+            'discount_percentage': 'Discount Percentage (%)',
+            'minimum_order_value': 'Minimum Order Value',
+            'maximum_discount': 'Maximum Discount Amount',
+            'valid_from': 'Valid From (Date)',
+            'valid_until': 'Valid Until (Date)',
+            'usage_limit': 'Usage Limit (0 = unlimited)',
+            'is_active': 'Active',
+            'applicable_categories': 'Applicable Main Category'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [('', 'All Categories')]
+        for category in Category.objects.filter(parent_category__isnull=True):
+            choices.append((str(category.pk), category.name))
+        self.fields['applicable_categories'].choices = choices
+        
+        # Set up assigned_customers choices
+        customer_choices = [('', 'All Customers')]
+        for customer in Customer.objects.all():
+            customer_choices.append((str(customer.customer_id), customer.username))
+        self.fields['assigned_customers'].choices = customer_choices
+        
+        # Set initial value for applicable_categories
+        if self.instance and self.instance.pk:
+            if self.instance.applicable_categories.exists():
+                # If coupon has specific categories, show the first one
+                # (Since we're changing to single category, we'll take the first)
+                first_category = self.instance.applicable_categories.first()
+                if first_category:
+                    self.fields['applicable_categories'].initial = str(first_category.pk)
+            else:
+                # No specific categories means "All Categories"
+                self.fields['applicable_categories'].initial = ''
+            
+            # Set initial value for assigned_customers
+            assigned_customers = self.instance.assigned_customers.all()
+            if assigned_customers.exists():
+                # If coupon has specific customers assigned, show the first one
+                # (Since we're changing to single customer, we'll take the first)
+                first_customer = assigned_customers.first()
+                if first_customer:
+                    self.fields['assigned_customers'].initial = str(first_customer.customer_id)
+            else:
+                # No specific customers means "All Customers"
+                self.fields['assigned_customers'].initial = ''
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Save the instance first to ensure it has a primary key for many-to-many relationships
+        if commit:
+            instance.save()
+        
+        category_choice = self.cleaned_data.get('applicable_categories')
+        if category_choice:  # Specific category selected
+            try:
+                category = Category.objects.get(pk=category_choice)
+                instance.applicable_categories.set([category])
+            except Category.DoesNotExist:
+                instance.applicable_categories.clear()
+        else:  
+            instance.applicable_categories.clear()
+    
+        customer_choice = self.cleaned_data.get('assigned_customers')
+        if customer_choice:
+            try:
+                customer = Customer.objects.get(customer_id=customer_choice)
+                instance.assigned_customers.set([customer])
+            except Customer.DoesNotExist:
+                instance.assigned_customers.clear()
+        else: 
+            instance.assigned_customers.clear()
+        
+        return instance
+
+class CouponUsageForm(forms.ModelForm):
+    class Meta:
+        model = CouponUsage
+        fields = ['coupon', 'customer', 'order', 'discount_amount']
+        widgets = {
+            'coupon': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'customer': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'order': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'discount_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            })
+        }
+        labels = {
+            'coupon': 'Coupon',
+            'customer': 'Customer',
+            'order': 'Order',
+            'discount_amount': 'Discount Amount'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['coupon'].queryset = Coupon.objects.filter(is_active=True)
+        self.fields['order'].queryset = Order.objects.filter(coupon__isnull=False).exclude(coupon='')
+        self.fields['customer'].queryset = Customer.objects.filter(coupon_usages__isnull=False).distinct()
+    

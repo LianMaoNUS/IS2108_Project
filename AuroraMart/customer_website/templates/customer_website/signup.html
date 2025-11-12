@@ -23,12 +23,22 @@
             {% load static %}
             <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
         </div>
-        <form class="login-form" method="post">
+        <form id="signup-form" class="login-form" method="post">
             {% csrf_token %}
             {{ form.username }}
             <div class="password-container">
                 {{ form.password }}
                 <i class="fa-solid fa-eye fa-lg" id="togglePassword"></i>
+            </div>
+            <div id="password-requirements" class="password-requirements">
+                <p>Password must contain:</p>
+                <ul>
+                    <li id="req-length"><i class="fa-solid fa-times"></i> At least 8 characters</li>
+                    <li id="req-uppercase"><i class="fa-solid fa-times"></i> One uppercase letter</li>
+                    <li id="req-lowercase"><i class="fa-solid fa-times"></i> One lowercase letter</li>
+                    <li id="req-digit"><i class="fa-solid fa-times"></i> One digit</li>
+                    <li id="req-special"><i class="fa-solid fa-times"></i> One special character (!@#$%^&*(),.?":{}|<>)</li>
+                </ul>
             </div>
             <div class="password-container">
                 {{ form.password_check }}
@@ -36,7 +46,7 @@
             </div>
             {{ form.email }}
             {% if error_message %}
-            <div class="error-list" style="color: red; font-size: small;">
+            <div class="error-list" style="color: red; font-size: medium;">
                 {% for error in error_message %}
                     <p class="error-message">{{ error }}</p>
                 {% endfor %}

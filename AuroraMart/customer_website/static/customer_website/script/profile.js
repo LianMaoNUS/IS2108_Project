@@ -22,3 +22,10 @@ function sortOrders(sortValue) {
     window.location.href = currentUrl.toString();
 }
 
+function closeMessage() {
+    const messageDiv = document.getElementById('profile-message');
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
+}
+

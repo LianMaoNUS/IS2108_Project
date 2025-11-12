@@ -122,7 +122,11 @@
         {% if recommended_products %}
         <section class="recommendations-section">
             <div class="section-header">
+                {% if recommended_title %}
                 <h2>Frequently Bought Together</h2>
+                {% else %}
+                <h2>Top Products</h2>
+                {% endif %}
             </div>
             <div class="product-grid-horizontal">
                 {% for rec_product in recommended_products %}

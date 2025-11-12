@@ -7,7 +7,6 @@ urlpatterns = [
     path('login/', views.loginview.as_view(), name='login'),
     path('forgot-password/', views.ForgotPasswordView.as_view(), name='forgot_password'),
     path('reset-password/<str:username>/', views.ResetPasswordView.as_view(), name='reset_password'),
-    #add middleware to protect these routes
     path('new_user/', views.new_userview.as_view(), name='new_user'),
     path('home/', views.mainpageview.as_view(), name='customer_home'),
     path('cart/', views.cartview.as_view(), name='cart'),

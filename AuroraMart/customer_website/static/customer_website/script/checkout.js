@@ -114,3 +114,16 @@ function formatCurrency(amount, currencySymbol = '$') {
     return currencySymbol + parseFloat(amount).toFixed(2);
 }
 
+// Coupon Selection
+function selectCoupon(couponCode) {
+    const couponInput = document.getElementById('coupon_code');
+    if (couponInput) {
+        couponInput.value = couponCode;
+    }
+    
+    // Add coupon code to URL and refresh page to update order summary
+    const url = new URL(window.location);
+    url.searchParams.set('coupon_code', couponCode);
+    window.location.href = url.toString();
+}
+

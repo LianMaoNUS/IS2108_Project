@@ -15,7 +15,7 @@
                 <div class="hero-content">
                     <h2>Welcome back, {{username}}!</h2>
                     <p>We got some products we hope you'll like today!</p>
-                    <a href="#recommendations" class="btn btn-primary">See recommendations</a>
+                    <a href="{% if main_category %}#recommendations{% else %}#top-products{% endif %}" class="btn btn-primary">{% if main_category %}See recommendations{% else %}Browse products{% endif %}</a>
                 </div>
             </div>
 
@@ -24,7 +24,7 @@
                 <div class="hero-content">
                     <h2>Discover Amazing Products</h2>
                     <p>Explore our curated collection of premium items</p>
-                    <a href="#recommendations" class="btn btn-primary">Shop Now</a>
+                    <a href="{% url 'all_products' %}" class="btn btn-primary">Shop Now</a>
                 </div>
             </div>
 
@@ -33,7 +33,7 @@
                 <div class="hero-content">
                     <h2>Special Offers</h2>
                     <p>Don't miss out on our limited-time deals</p>
-                    <a href="#recommendations" class="btn btn-primary">View Deals</a>
+                    <a href="#top-products" class="btn btn-primary">View Deals</a>
                 </div>
             </div>
         </div>
@@ -55,6 +55,7 @@
     </header>
 
     <main>
+        {% if main_category %}
         <section id="recommendations" class="product-section">
 
             <div class="section-header">
@@ -97,6 +98,7 @@
             </div>
 
         </section>
+        {% endif %}
                 <section id="top-products" class="product-section">
             <div class="section-header">
                 <h2>Top Products</h2>

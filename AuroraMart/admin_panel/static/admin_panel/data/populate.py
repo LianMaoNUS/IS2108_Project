@@ -64,7 +64,7 @@ def populate_customers():
                     occupation=row.get('occupation', ''),
                     education=row.get('education', ''),
                     household_size=int(row.get('household_size', 1)) if row.get('household_size') else 1,
-                    has_children=row.get('has_children', '').lower() in ['true', '1', 'yes'],
+                    number_of_children=int(row.get('number_of_children', 0)) if row.get('number_of_children') else 0,
                     monthly_income_sgd=Decimal(row.get('monthly_income_sgd', '0')) if row.get('monthly_income_sgd') else Decimal('0'),
                     preferred_category=row.get('preferred_category', ''),
                 )

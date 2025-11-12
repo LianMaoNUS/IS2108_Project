@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AuroraMart{% endblock %}</title>
-    
+
     {% load static %}
     <link rel="stylesheet" href="{% static 'customer_website/css/navbar_footer.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <!-- Page-specific CSS -->
-    {% block extra_css %}{% endblock %}
-    
-    <!-- Common JS for all pages -->
+
+    {% block extra_css %}
+    {% endblock %}
+
     <script src="{% static 'customer_website/script/navbar_search.js' %}"></script>
-    
-    <!-- Page-specific JS -->
+
     {% block extra_js %}{% endblock %}
+
 </head>
+
 <body>
-    <!-- Navigation Bar -->
     <nav class="navbar">
         <a href="{% url 'customer_home' %}" class="logo">
             <div class="logo-container">
@@ -29,7 +29,6 @@
             </div>
         </a>
 
-        <!-- Global search bar -->
         <div class="nav-search">
             <div class="search-input-wrapper">
                 <i class="fas fa-search"></i>
@@ -61,14 +60,52 @@
         </div>
     </nav>
 
-    <!-- Main Content Area -->
     <main>
+
+        {% if error_message %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            <div class="alert-content">
+                {% for err in error_message %}
+                <p>{{ err }}</p>
+                {% endfor %}
+            </div>
+            <button type="button" class="alert-close" onclick="this.closest('.alert').remove()"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        {% endif %}
+
+        {% if success_message %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <div class="alert-content">
+                {% for msg in success_message %}
+                <p>{{ msg }}</p>
+                {% endfor %}
+            </div>
+            <button type="button" class="alert-close" onclick="this.closest('.alert').remove()"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        {% endif %}
+
+        {% if request.session.customer_hasLogin and request.session.preferred_category == 'none' %}
+        <div class="profile-completion-banner">
+            <div class="banner-content">
+                <div class="banner-text">
+                    <h3>Complete your profile now to enjoy personalised offers and recommendations!</h3>
+                    <p>Get tailored product suggestions based on your preferences.</p>
+                </div>
+                <div class="banner-action">
+                    <a href="{% url 'new_user' %}" class="btn btn-primary">Complete Profile</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% block content %}
-        <!-- Page-specific content goes here -->
         {% endblock %}
     </main>
 
-    <!-- Footer -->
     <footer>
         <div class="footer-main">
             <div class="footer-col-logo">
@@ -106,7 +143,9 @@
         </div>
     </footer>
 
-    <!-- Page-specific scripts at the end -->
-    {% block bottom_js %}{% endblock %}
+
 </body>
+{% block bottom_js %}
+{% endblock %}
+
 </html>

@@ -42,7 +42,25 @@ class CustomerLoginForm(forms.Form):
         }
     ))
 
-class CustomerSignupForm(forms.ModelForm):
+class CustomerSignupForm(forms.Form):
+    username = forms.CharField(widget=forms.TextInput(
+        attrs={
+            'class': 'login_form', 
+            'placeholder': 'Enter a unique username' 
+        }
+    ))
+    email = forms.EmailField(widget=forms.EmailInput(
+        attrs={
+            'class': 'login_form',
+            'placeholder': 'Enter your email address'
+        }
+    ))
+    password = forms.CharField(widget=forms.PasswordInput(
+        attrs={
+            'class': 'login_form',
+            'placeholder': 'Create a strong password'
+        }
+    ))
     password_check = forms.CharField(
         label="Re-enter password", 
         widget=forms.PasswordInput(attrs={
@@ -50,48 +68,17 @@ class CustomerSignupForm(forms.ModelForm):
             'class': 'login_form'
         })
     )
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['email'].initial = ''
-    
-    class Meta:
-        model = Customer
-        fields = ['username', 'email', 'password', 'password_check']
-        widgets = {
-            'username': forms.TextInput(attrs={
-                'placeholder': 'Enter a unique username',
-                'class': 'login_form'
-            }),
-            'email': forms.EmailInput(attrs={
-                'placeholder': 'Enter your email address',
-                'class': 'login_form'
-            }),
-            'password': forms.PasswordInput(attrs={
-                'placeholder': 'Create a strong password',
-                'class': 'login_form'
-            }),
-            'role': forms.Select(attrs={
-                'class': 'login_form'
-            }),
-        }
 
     def clean(self):
         cleaned_data = super().clean()
         username = cleaned_data.get('username')
-        email = cleaned_data.get('email')
         password = cleaned_data.get('password')
         password_check = cleaned_data.get('password_check')
 
-        if 'username' in self.changed_data:
+        if username:
             username_status = check_username(username)
             if username_status != "Valid":
                 self.add_error('username', username_status)
-
-        if email and 'email' in self.changed_data:
-            # Check if email already exists
-            if Customer.objects.filter(email=email).exists():
-                self.add_error('email', 'This email address is already registered.')
 
         if password:
             password_status = check_password(password, password_check)
@@ -104,11 +91,11 @@ class CustomerForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Add 'class': 'form-control' to all fields
         for field_name, field in self.fields.items():
+            if field_name != 'username':
+                field.required = True
             field.widget.attrs.update({'class': 'form-control'})
         
-        # Add empty option for choice fields
         if 'gender' in self.fields:
             self.fields['gender'].widget.choices = [('', 'Select Gender')] + list(self.fields['gender'].choices)[1:]
         if 'employment_status' in self.fields:
@@ -117,17 +104,18 @@ class CustomerForm(forms.ModelForm):
             self.fields['education'].widget.choices = [('', 'Select Education Level')] + list(self.fields['education'].choices)[1:]
         if 'occupation' in self.fields:
             self.fields['occupation'].widget.choices = [('', 'Select Occupation')] + list(self.fields['occupation'].choices)[1:]
-        if 'has_children' in self.fields:
-            self.fields['has_children'].widget.choices = [('', 'Select Option')] + list(self.fields['has_children'].choices)[1:]
+        if 'number_of_children' in self.fields:
+            pass  # No choices needed for number input
                 
         self.fields['age'].widget.attrs.update({'placeholder': 'Enter your age'})
         self.fields['household_size'].widget.attrs.update({'placeholder': 'Number of people in household'})
+        self.fields['number_of_children'].widget.attrs.update({'placeholder': 'Number of children'})
         self.fields['monthly_income_sgd'].widget.attrs.update({'placeholder': 'Enter monthly income in SGD'})
 
     class Meta:
         model = Customer
         fields = ['username', 'age', 'gender', 'employment_status', 'occupation', 'education', 
-                 'household_size', 'has_children', 'monthly_income_sgd']
+                 'household_size', 'number_of_children', 'monthly_income_sgd']
         widgets = {
             'username': forms.HiddenInput(),
             'age': forms.NumberInput(attrs={
@@ -141,7 +129,9 @@ class CustomerForm(forms.ModelForm):
             'household_size': forms.NumberInput(attrs={
                 'min': '1'
             }),
-            'has_children': forms.Select(),
+            'number_of_children': forms.NumberInput(attrs={
+                'min': '0'
+            }),
             'monthly_income_sgd': forms.NumberInput(attrs={
                 'step': '0.01',
                 'min': '0'
@@ -184,6 +174,7 @@ class CheckoutForm(forms.Form):
     )
     address = forms.CharField(
         max_length=255,
+        min_length=5,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': '123 Main Street',
@@ -284,6 +275,17 @@ class CheckoutForm(forms.Form):
         })
     )
     
+    # Coupon Code
+    coupon_code = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter coupon code (optional)',
+            'id': 'coupon_code'
+        })
+    )
+    
     # Order Notes
     order_notes = forms.CharField(
         required=False,
@@ -338,7 +340,6 @@ class CheckoutForm(forms.Form):
             if len(card_digits) < 13 or len(card_digits) > 19:
                 raise forms.ValidationError('Card number must be between 13 and 19 digits.')
             
-            # Luhn algorithm validation
             if not self._luhn_check(card_digits):
                 raise forms.ValidationError('Please enter a valid card number.')
         
@@ -395,6 +396,55 @@ class CheckoutForm(forms.Form):
         
         return card_holder
 
+    def clean_address(self):
+        address = self.cleaned_data.get('address')
+        if address:
+            address = address.strip()
+
+            if len(address) < 5:
+                raise forms.ValidationError('Address must be at least 5 characters long.')
+            
+            if not re.search(r'[a-zA-Z]', address):
+                raise forms.ValidationError('Address must contain at least one letter.')
+            
+            special_chars = re.findall(r'[^a-zA-Z0-9\s]', address)
+            if len(special_chars) > len(address) * 0.5:
+                raise forms.ValidationError('Address contains too many special characters.')
+            
+            if re.match(r'^\d+$', address):  
+                raise forms.ValidationError('Address cannot be only numbers.')
+            
+            if re.match(r'^[^\w\s]+$', address): 
+                raise forms.ValidationError('Address cannot be only special characters.')
+        
+        return address
+
+    def clean_coupon_code(self):
+        """Validate coupon code if provided"""
+        coupon_code = self.cleaned_data.get('coupon_code')
+        
+        if coupon_code:
+            coupon_code = coupon_code.upper().strip()
+            from admin_panel.models import Coupon
+            
+            try:
+                coupon = Coupon.objects.get(code=coupon_code)
+                if not coupon.is_active:
+                    raise forms.ValidationError('This coupon is not active.')
+                
+                from django.utils import timezone
+                now = timezone.now().date()
+                if not (coupon.valid_from <= now <= coupon.valid_until):
+                    raise forms.ValidationError('This coupon is not valid at this time.')
+                
+                if coupon.usage_limit > 0 and coupon.usage_count >= coupon.usage_limit:
+                    raise forms.ValidationError('This coupon has reached its usage limit.')
+                
+            except Coupon.DoesNotExist:
+                raise forms.ValidationError('Invalid coupon code.')
+        
+        return coupon_code
+
     def _luhn_check(self, card_number):
         """Luhn algorithm for credit card validation"""
         total = 0
@@ -417,6 +467,21 @@ class ForgotPasswordForm(forms.Form):
             'placeholder': 'Enter your username'
         })
     )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'login_form',
+            'placeholder': 'Enter your email address'
+        })
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make email required if it's in the POST data
+        if self.data and self.data.get('email'):
+            self.fields['email'].required = True
+            # Make username readonly
+            self.fields['username'].widget.attrs['readonly'] = True
     
     def clean_username(self):
         username = self.cleaned_data.get('username')

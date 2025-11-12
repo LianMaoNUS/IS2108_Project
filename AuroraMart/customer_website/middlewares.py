@@ -20,7 +20,8 @@ class CustomerAuthMiddleware:
                 return redirect('login')
             
         if request.path == reverse('new_user'):
-            if not request.session.get('new_user'):
+
+            if not request.session.get('customer_hasLogin') and not request.session.get('new_user'):
                 return redirect('login')
             
         response = self.get_response(request)

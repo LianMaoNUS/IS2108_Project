@@ -1,11 +1,10 @@
 from django.shortcuts import render, redirect
 from django.core.mail import send_mail
 from django.urls import reverse
-from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from .models import Customer
-from admin_panel.models import Product, Category ,Order, OrderItem, Review
+from admin_panel.models import Product, Category ,Order, OrderItem, Review, Coupon, CouponUsage
 from django.views import View
 from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm, ForgotPasswordForm, ResetPasswordForm, ReviewForm
 from django.contrib.auth.hashers import check_password
@@ -16,8 +15,9 @@ from decimal import Decimal
 from django.http import JsonResponse
 import uuid
 from datetime import datetime
-from django.db.models import Case, When, Value, IntegerField
+from django.db.models import Case, When, Value, IntegerField, Q
 from admin_panel.forms import ReviewForm
+from datetime import timedelta
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -323,21 +323,91 @@ class signupview(View):
 
 class new_userview(View):
     template_name = 'customer_website/new_user.html'
+
     customer_details_form_class = CustomerForm
 
     def get(self, request, *args, **kwargs):
+        logged_in_username = request.session.get('customer_username')
+        if logged_in_username and not request.session.get('new_user_username'):
+            try:
+                customer = Customer.objects.get(username=logged_in_username)
+                # Set sessions for profile update
+                request.session['new_user_username'] = customer.username
+                request.session['new_user_password'] = customer.password
+                request.session['updating_profile'] = True
+            except Customer.DoesNotExist:
+                pass
+        
         username = request.session.get('new_user_username')
         initial_data = {'username': username} if username else {}
+        
+        # Pre-populate form with existing customer data if updating profile
+        if request.session.get('updating_profile') and logged_in_username:
+            try:
+                customer = Customer.objects.get(username=logged_in_username)
+                initial_data.update({
+                    'age': customer.age,
+                    'gender': customer.gender,
+                    'employment_status': customer.employment_status,
+                    'occupation': customer.occupation,
+                    'education': customer.education,
+                    'household_size': customer.household_size,
+                    'number_of_children': customer.number_of_children,
+                    'monthly_income_sgd': customer.monthly_income_sgd,
+                })
+            except Customer.DoesNotExist:
+                pass
+        
         form = self.customer_details_form_class(initial=initial_data)
-        return render(request, self.template_name, {"form": form})
+        context = {
+            "form": form,
+            "is_profile_update": request.session.get('updating_profile', False)
+        }
+        return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
         username = request.session.get('new_user_username')
         password = request.session.get('new_user_password')
         email = request.session.get('new_user_email')
+        is_updating_profile = request.session.get('updating_profile', False)
         
         if not username or not password or not email:
-            return redirect('signup')
+            return render(request, 'customer_website/signup.html', {
+                "form": CustomerSignupForm(),
+                "error_message": ["Session expired. Please sign up again."]
+            })
+            
+        if request.POST.get('action') == 'skip':
+            if is_updating_profile:
+                # For logged-in users updating profile, just set preferred_category to 'none'
+                try:
+                    customer = Customer.objects.get(username=username)
+                    customer.preferred_category = 'none'
+                    customer.save()
+                    request.session['preferred_category'] = 'none'
+                except Customer.DoesNotExist:
+                    pass
+            else:
+                # For new users, create customer with preferred_category='none'
+                customer = Customer(
+                    username=username,
+                    password=password,
+                    email=email,
+                    preferred_category='none'
+                )
+                customer.save()
+                
+                request.session['customer_hasLogin'] = True
+                request.session['customer_username'] = username
+                request.session['customer_profile_picture'] = customer.profile_picture
+            
+            # Clean up sessions
+            request.session.pop('new_user', None)
+            request.session.pop('new_user_username', None)
+            request.session.pop('new_user_password', None)
+            request.session.pop('updating_profile', None)
+            
+            return redirect('customer_home')
             
         form = self.customer_details_form_class(request.POST)
         
@@ -350,40 +420,95 @@ class new_userview(View):
                 'occupation': customer_data.get('occupation'),
                 'education': customer_data.get('education'),
                 'household_size': customer_data.get('household_size'),
-                'has_children': True if customer_data['has_children'] else False,
+                'number_of_children': customer_data.get('number_of_children'),
                 'monthly_income_sgd': customer_data.get('monthly_income_sgd'),
             }
             preferred_category = predict_preferred_category(customer_preferred)
             
-            # Create the customer instance manually
-            customer = Customer(
-                username=username,
-                password=password,
-                email=email,
-                age=customer_data.get('age'),
-                gender=customer_data.get('gender'),
-                employment_status=customer_data.get('employment_status'),
-                occupation=customer_data.get('occupation'),
-                education=customer_data.get('education'),
-                household_size=customer_data.get('household_size'),
-                has_children= True if customer_data['has_children'] else False,
-                monthly_income_sgd=customer_data.get('monthly_income_sgd'),
-                preferred_category=preferred_category[0] if preferred_category else 'General'
-            )
+            if is_updating_profile:
+                try:
+                    customer = Customer.objects.get(username=username)
+                    customer.age = customer_data.get('age')
+                    customer.gender = customer_data.get('gender')
+                    customer.employment_status = customer_data.get('employment_status')
+                    customer.occupation = customer_data.get('occupation')
+                    customer.education = customer_data.get('education')
+                    customer.household_size = customer_data.get('household_size')
+                    customer.number_of_children = customer_data.get('number_of_children')
+                    customer.monthly_income_sgd = customer_data.get('monthly_income_sgd')
+                    customer.preferred_category = preferred_category[0] if preferred_category else 'General'
+                    customer.save()
+
+                    Coupon.objects.create(
+                    code=f'DETAILS40{customer.username[0:4].upper()}',
+                    discount_percentage=40,
+                    description='40% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
+                    valid_from=datetime.now(),
+                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    usage_limit=1,
+                    minimum_order_value=Decimal('50.00'),
+                    maximum_discount_amount=Decimal('50.00'),
+                    is_active=True
+                    ).assigned_customers.add(customer)
+
+                    request.session['preferred_category'] = customer.preferred_category
+                    
+                except Customer.DoesNotExist:
+                    customer = Customer(
+                        username=username,
+                        password=password,
+                        email=email,
+                        age=customer_data.get('age'),
+                        gender=customer_data.get('gender'),
+                        employment_status=customer_data.get('employment_status'),
+                        occupation=customer_data.get('occupation'),
+                        education=customer_data.get('education'),
+                        household_size=customer_data.get('household_size'),
+                        number_of_children=customer_data.get('number_of_children'),
+                        monthly_income_sgd=customer_data.get('monthly_income_sgd'),
+                        preferred_category=preferred_category[0] if preferred_category else 'General'
+                    )
+                    customer.save()
+            else:
+                # Create new customer
+                customer = Customer(
+                    username=username,
+                    password=password,
+                    email=email,
+                    age=customer_data.get('age'),
+                    gender=customer_data.get('gender'),
+                    employment_status=customer_data.get('employment_status'),
+                    occupation=customer_data.get('occupation'),
+                    education=customer_data.get('education'),
+                    household_size=customer_data.get('household_size'),
+                    number_of_children=customer_data.get('number_of_children'),
+                    monthly_income_sgd=customer_data.get('monthly_income_sgd'),
+                    preferred_category=preferred_category[0] if preferred_category else 'General'
+                )
+                
+                customer.save()
+    
+                Coupon.objects.create(
+                    code=f'WELCOME10{customer.username[0:4].upper()}',
+                    discount_percentage=10,
+                    description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
+                    valid_from=datetime.now(),
+                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    usage_limit=1,
+                    minimum_order_value=Decimal('50.00'),
+                    maximum_discount=Decimal('50.00'),
+                    is_active=True
+                ).assigned_customers.add(customer)
+                
+                request.session['customer_hasLogin'] = True
+                request.session['customer_username'] = username
+                request.session['customer_profile_picture'] = customer.profile_picture
             
-            # Save the customer
-            customer.save()
-            print(f"Predicted category: {preferred_category}")
-            
-            # Set up login session
-            request.session['customer_hasLogin'] = True
-            request.session['customer_username'] = username
-            request.session['customer_profile_picture'] = customer.profile_picture
-            
-            # Clear the signup session data
+            # Clean up sessions
             request.session.pop('new_user', None)
             request.session.pop('new_user_username', None)
             request.session.pop('new_user_password', None)
+            request.session.pop('updating_profile', None)
             
             return redirect('customer_home')
         else:
@@ -396,21 +521,11 @@ class mainpageview(View):
     template_name = 'customer_website/main_page.html'
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get('logout') == 'true':
-            request.session.pop('customer_hasLogin', None)
-            request.session.pop('customer_username', None)
-            request.session.pop('customer_profile_picture', None)
-            request.session.pop('preferred_category', None)
-            request.session.pop('browsing_history', None)
-            request.session.pop('cart', None)
-            request.session.pop('selected_currency', None)
-            return redirect('login')
-            
         user = Customer.objects.get(username=request.session.get('customer_username'))
-        main_category = Category.objects.filter(name=user.preferred_category)
+        main_category = Category.objects.filter(name=user.preferred_category) if user.preferred_category != 'none' else Category.objects.none()
         request.session['preferred_category'] = user.preferred_category
         more_categories = Category.objects.filter(parent_category__isnull=True).exclude(name=user.preferred_category)[:5]
-        products = Product.objects.filter(category__in=main_category).distinct()[:12]
+        products = Product.objects.filter(category__in=main_category).distinct()[:12] if main_category else Product.objects.none()
         top_products = Product.objects.order_by('-reorder_quantity')[:10]
         currency_context = get_currency_context(request)
         convert_product_prices(products, currency_context['currency_info'])
@@ -466,14 +581,18 @@ class product_detailview(View):
                 return redirect(redirect_url)
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
-            print("sku list",sku, "Recommended SKUs:", recommended_products_sku)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
             
             if not recommended_products.exists():
                 preferred_category = request.session.get('preferred_category', None)
-                recommended_products = Product.objects.filter(
-                    category__name=preferred_category
-                ).exclude(sku=sku)[:4]
+                if preferred_category and preferred_category != 'none':
+                    recommended_products = Product.objects.filter(
+                        category__name=preferred_category
+                    ).exclude(sku=sku)[:4]
+                    recommended_title = True
+                else:
+                    recommended_products = Product.objects.order_by('-reorder_quantity').exclude(sku=sku)[:4]
+                    recommended_title = False
 
             convert_product_prices([product] + list(recommended_products), currency_context['currency_info'])
             
@@ -489,6 +608,7 @@ class product_detailview(View):
                 'profile_picture': request.session.get('customer_profile_picture'),
                 'cart_count': get_cart_count(request),
                 'cart_added': cart_added,
+                'recommended_title': recommended_title if 'recommended_title' in locals() else False,
             }
             context.update(currency_context)
             
@@ -753,17 +873,79 @@ class checkout_page(View):
         checkout_form = CheckoutForm()
         
         currency_context = get_currency_context(request)
+        
+        # Get available coupons for this customer
+        username = request.session.get('customer_username')
+        customer = None
+        if username:
+            try:
+                customer = Customer.objects.get(username=username)
+                # Get coupons available to this customer
+                general_coupons = Coupon.objects.filter(
+                    is_active=True,
+                    valid_from__lte=datetime.now(),
+                    valid_until__gte=datetime.now(),
+                    assigned_customers__isnull=True
+                ).exclude(usages__customer=customer)
+                
+                assigned_coupons = Coupon.objects.filter(
+                    is_active=True,
+                    valid_from__lte=datetime.now(),
+                    valid_until__gte=datetime.now(),
+                    assigned_customers=customer
+                ).exclude(usages__customer=customer)
+                
+                available_coupons = (general_coupons | assigned_coupons).distinct().order_by('valid_until')
+            except Customer.DoesNotExist:
+                available_coupons = Coupon.objects.none()
+        else:
+            available_coupons = Coupon.objects.none()
+
+        # Handle coupon code from URL parameter
+        discount_amount = Decimal('0.00')
+        selected_coupon_code = request.GET.get('coupon_code', '').strip()
+        coupon_error = None
+        final_total = totals['total']
+        
+        if selected_coupon_code and customer:
+            try:
+                coupon = Coupon.objects.get(code=selected_coupon_code.upper())
+                
+                if not coupon.is_valid():
+                    coupon_error = 'The coupon is not valid.'
+                elif not coupon.can_be_used_by(customer):
+                    coupon_error = 'You are not eligible to use this coupon.'
+                elif CouponUsage.objects.filter(coupon=coupon, customer=customer).exists():
+                    coupon_error = 'You have already used this coupon.'
+                else:
+                    subtotal_in_sgd = (totals['subtotal'] / currency_context['currency_info']['rate']).quantize(Decimal('0.01'))
+                    discount_amount = coupon.calculate_discount(subtotal_in_sgd)
+                    if discount_amount <= 0:
+                        coupon_error = 'The coupon does not apply to this order.'
+                    else:
+                        discount_amount = discount_amount * currency_context['currency_info']['rate']
+                        final_total = totals['total'] - discount_amount
+                        
+            except Coupon.DoesNotExist:
+                coupon_error = 'Invalid coupon code.'
+        
+        if selected_coupon_code:
+            checkout_form.initial['coupon_code'] = selected_coupon_code
 
         context = {
             'cart_items': cart_items,
             'subtotal': totals['subtotal'],
             'shipping_cost': totals['shipping'],
             'tax_amount': totals['tax'],
-            'total_amount': totals['total'],
+            'total_amount': final_total,
+            'discount_amount': discount_amount,
             'cart_count': get_cart_count(request),
             'username': request.session.get('customer_username'),
             'profile_picture': request.session.get('customer_profile_picture'),
             'checkout_form': checkout_form,
+            'available_coupons': available_coupons,
+            'selected_coupon_code': selected_coupon_code,
+            'coupon_error': coupon_error,
         }
         context.update(currency_context)
         
@@ -785,6 +967,24 @@ class checkout_page(View):
                 request.session.modified = True
                 
                 return redirect('order_confirmation', order_id=order_result['order_id'])
+            else:
+                print("Order processing error:", order_result['error'])
+                context = {
+                    'cart_items': cart_items,
+                    'subtotal': totals['subtotal'],
+                    'shipping_cost': totals['shipping'],
+                    'tax_amount': totals['tax'],
+                    'total_amount': totals['total'],
+                    'discount_amount': Decimal('0.00'), 
+                    'cart_count': get_cart_count(request),
+                    'username': request.session.get('customer_username'),
+                    'profile_picture': request.session.get('customer_profile_picture'),
+                    'checkout_form': checkout_form,
+                    'form_error': order_result['error'],
+                }
+                context.update(currency_context)
+                
+                return render(request, self.template_name, context)
 
         context = {
             'cart_items': cart_items,
@@ -792,6 +992,7 @@ class checkout_page(View):
             'shipping_cost': totals['shipping'],
             'tax_amount': totals['tax'],
             'total_amount': totals['total'],
+            'discount_amount': Decimal('0.00'), 
             'cart_count': get_cart_count(request),
             'username': request.session.get('customer_username'),
             'profile_picture': request.session.get('customer_profile_picture'),
@@ -844,14 +1045,63 @@ class checkout_page(View):
             currency_context = get_currency_context(request)
             currency_rate = currency_context['currency_info']['rate']
             
+            subtotal_in_sgd = (totals['subtotal'] / currency_rate).quantize(Decimal('0.01'))
             total_in_sgd = (totals['total'] / currency_rate).quantize(Decimal('0.01'))
+
+            # Handle coupon if provided
+            coupon = None
+            discount_amount = Decimal('0.00')
+            coupon_code = form_data.get('coupon_code', '').strip()
+            
+            if coupon_code:
+                
+                try:
+                    coupon = Coupon.objects.get(code=coupon_code.upper())
+                    
+                    # Validate coupon
+                    if not coupon.is_valid():
+                        return {
+                            'success': False,
+                            'error': 'The coupon is not valid.'
+                        }
+                    
+                    if not coupon.can_be_used_by(customer):
+                        return {
+                            'success': False,
+                            'error': 'You are not eligible to use this coupon.'
+                        }
+                    
+                    if CouponUsage.objects.filter(coupon=coupon, customer=customer).exists():
+                        return {
+                            'success': False,
+                            'error': 'You have already used this coupon.'
+                        }
+                    
+                    # Calculate discount
+                    discount_amount = coupon.calculate_discount(subtotal_in_sgd)
+                    if discount_amount <= 0:
+                        return {
+                            'success': False,
+                            'error': 'The coupon does not apply to this order.'
+                        }
+                    
+                except Coupon.DoesNotExist:
+                    return {
+                        'success': False,
+                        'error': 'Invalid coupon code.'
+                    }
 
             order = Order.objects.create(
                 customer=customer,
+                customer_email=form_data['email'],
                 status='PENDING',
                 shipping_address=f"{form_data['address']}, {form_data['city']}, {form_data['postal_code']}, {form_data['country']}",
                 order_notes=form_data.get('order_notes', ''),
-                total_amount=total_in_sgd,
+                subtotal_amount=subtotal_in_sgd,
+                discount_amount=discount_amount,
+                total_amount=total_in_sgd - discount_amount,
+                coupon=coupon,
+                coupon_code=coupon_code if coupon else None,
                 order_date=datetime.now()
             )
 
@@ -872,7 +1122,50 @@ class checkout_page(View):
                         'error': f'Product {item["sku"]} not found.'
                     }
                 
+            if coupon:
+                CouponUsage.objects.create(
+                    coupon=coupon,
+                    customer=customer,
+                    order=order,
+                    discount_amount=discount_amount
+                )
+
+                coupon.usage_count += 1
+                coupon.save()
+            
             order.save()
+            recommended_cat = get_recommendations([item['sku'] for item in cart_items], top_n=1)[0]
+            if recommended_cat == []:
+                recommended_cat = customer.preferred_category.name if customer.preferred_category else 'General'
+                coupon_cat = customer.preferred_category.name if customer.preferred_category else 'General'
+            else:           
+                try:
+                    recommended_product = Product.objects.get(sku=recommended_cat)
+                    coupon_cat = recommended_product.category.name if recommended_product.category else 'General'
+                except Product.DoesNotExist:
+                    coupon_cat = 'General'
+
+            coupon = Coupon.objects.create(
+                code=f'REWARD{coupon_cat[0:3].upper()}{customer.username[0:4].upper()}',
+                discount_percentage=5,
+                description=f'Thank you for your purchase! Enjoy this reward coupon for {coupon_cat} category. 5% discount (Up till S$20). Max 1 time use, min spend S$30',
+                valid_from=datetime.now(),
+                valid_until=datetime.now() + timedelta(days=90), 
+                usage_limit=1,
+                minimum_order_value=Decimal('30.00'),
+                maximum_discount=Decimal('20.00'),
+                is_active=True
+            )
+            
+            # Set applicable category if it exists
+            if coupon_cat != 'General':
+                try:
+                    category = Category.objects.get(name=coupon_cat)
+                    coupon.applicable_categories.add(category)
+                except Category.DoesNotExist:
+                    pass  # Leave as all categories
+            
+            coupon.assigned_customers.add(customer)
             
             return {
                 'success': True,
@@ -899,7 +1192,7 @@ class order_confirmation_page(View):
             
             username = request.session.get('customer_username')
             if not username or order.customer.username != username:
-                return redirect('customer_home')
+                return render(request, 'customer_website/main_page.html')
 
             order_items = OrderItem.objects.filter(order_id=order)
             currency_context = get_currency_context(request)
@@ -925,15 +1218,14 @@ class order_confirmation_page(View):
             return render(request, self.template_name, context)
             
         except Order.DoesNotExist:
-            return redirect('customer_home')
+            return render(request, 'customer_website/main_page.html')
 
 class profile_page(View):
     template_name = 'customer_website/profile.html'
 
-    def get(self, request, *args, **kwargs):
+    def get_context_data(self, request, sort_by='date-desc', **kwargs):
         username = request.session.get('customer_username')
         customer = Customer.objects.get(username=username)
-        sort_by = request.GET.get('sort', 'date-desc')
         customer_orders = Order.objects.filter(customer=customer)
         
         if sort_by == 'date-asc':
@@ -959,15 +1251,6 @@ class profile_page(View):
         else:
             customer_orders = customer_orders.order_by('-order_date')
 
-        if request.GET.get('logout') == 'true':
-            request.session.pop('customer_hasLogin', None)
-            request.session.pop('customer_username', None)
-            request.session.pop('customer_profile_picture', None)
-            request.session.pop('preferred_category', None)
-            request.session.pop('browsing_history', None)
-            request.session.pop('cart', None)
-            request.session.pop('selected_currency', None)
-            return redirect('login')
         currency_context = get_currency_context(request)
         
         for order in customer_orders:
@@ -992,9 +1275,33 @@ class profile_page(View):
             order.converted_total = order_total
             order.processed_items = order_items
         
-        # Create review form instance
         review_form = ReviewForm()
-
+        
+        # Get coupons available to this customer
+        general_coupons = Coupon.objects.filter(
+            is_active=True,
+            valid_from__lte=datetime.now(),
+            valid_until__gte=datetime.now(),
+            assigned_customers__isnull=True
+        ).exclude(usages__customer=customer)
+        
+        assigned_coupons = Coupon.objects.filter(
+            is_active=True,
+            valid_from__lte=datetime.now(),
+            valid_until__gte=datetime.now(),
+            assigned_customers=customer
+        ).exclude(usages__customer=customer)
+        
+        print("GENERAL COUPONS:", general_coupons, "ASSIGNED COUPONS:", assigned_coupons)
+        
+        customer_coupons = (general_coupons | assigned_coupons).distinct().order_by('valid_until')
+        
+        # Add uses_left attribute to each coupon
+        for coupon in customer_coupons:
+            if coupon.usage_limit > 0:
+                coupon.uses_left = coupon.usage_limit - coupon.usage_count
+            else:
+                coupon.uses_left = 'Unlimited'
         
         context = {
             'customer': customer,
@@ -1004,21 +1311,43 @@ class profile_page(View):
             'customer_orders': customer_orders,
             'current_sort': sort_by,
             'review_form': review_form,
+            'customer_coupons': customer_coupons,
         }
         context.update(currency_context)
+        context.update(kwargs) 
+        return context
+
+    def get(self, request, *args, **kwargs):
+        sort_by = request.GET.get('sort', 'date-desc')
+
+        if request.GET.get('logout') == 'true':
+            request.session.pop('customer_hasLogin', None)
+            request.session.pop('customer_username', None)
+            request.session.pop('customer_profile_picture', None)
+            request.session.pop('preferred_category', None)
+            request.session.pop('browsing_history', None)
+            request.session.pop('cart', None)
+            request.session.pop('selected_currency', None)
+            return redirect('login')
+        
+        context = self.get_context_data(request, sort_by)
         return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
         username = request.session.get('customer_username')
         if not username:
-            return redirect('login')
+            return render(request, 'customer_website/login.html', {
+                "form": CustomerLoginForm(),
+                "error_message": ["Please log in to submit a review."]
+            })
         
         try:
             customer = Customer.objects.get(username=username)
 
             product_sku = request.POST.get('product_sku')
             if not product_sku:
-                return redirect('profile')
+                context = self.get_context_data(request, message=["Invalid product for review submission."])
+                return render(request, self.template_name, context)
             
             product = Product.objects.get(sku=product_sku)
             
@@ -1029,7 +1358,8 @@ class profile_page(View):
             ).exists()
             
             if not has_purchased:
-                return redirect('profile')
+                context = self.get_context_data(request, message=["You can only review products you have purchased."])
+                return render(request, self.template_name, context)
             
             form = ReviewForm(request.POST)
             
@@ -1051,16 +1381,23 @@ class profile_page(View):
                 else:
                     review.save()
                 
-                return redirect('profile')
+                context = self.get_context_data(request, message="Your review has been submitted successfully.")
+                return render(request, self.template_name, context)
             else:
-                return redirect('profile')
+                context = self.get_context_data(request, error_message=error_check(form.errors.values()))
+                return render(request, self.template_name, context)
                 
         except Customer.DoesNotExist:
-            return redirect('login')
+            return render(request, 'customer_website/login.html', {
+                "form": CustomerLoginForm(),
+                "error_message": ["Please log in to submit a review."]
+            })
         except Product.DoesNotExist:
-            return redirect('profile')
+            context = self.get_context_data(request, error_message=["Invalid product for review submission."])
+            return render(request, self.template_name, context)
         except Exception as e:
-            return redirect('profile')
+            context = self.get_context_data(request, error_message=["An unexpected error occurred. Please try again later."])
+            return render(request, self.template_name, context)
 
 
 class about_us_view(View):
@@ -1086,8 +1423,28 @@ class ForgotPasswordView(View):
     
     def post(self, request):
         form = ForgotPasswordForm(request.POST)
+        
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        
+        if username and not email:
+            temp_form = ForgotPasswordForm({'username': username})
+            if temp_form.is_valid():
+                form = ForgotPasswordForm(initial={'username': username})
+                return render(request, self.template_name, {
+                    'form': form, 
+                    'show_email': True,
+                    'username': username
+                })
+            else:
+                return render(request, self.template_name, {
+                    'form': temp_form, 
+                    'error_message': error_check(temp_form.errors.values())
+                })
+        
         if form.is_valid():
             username = form.cleaned_data['username']
+            email = form.cleaned_data['email']
             customer = Customer.objects.get(username=username)
             
             reset_url = request.build_absolute_uri(
@@ -1108,32 +1465,39 @@ Thank you,
 AuroraMart Team'''
             
             try:
-                # Create session for password reset
                 request.session[f'password_reset_{username}'] = True
-                request.session.set_expiry(3600)  # Session expires in 1 hour
+                request.session.set_expiry(3600) 
                 
                 send_mail(
                     subject,
                     message,
                     'noreply@auroramart.com',
-                    [customer.email],
+                    [email],
                     fail_silently=False,
                 )
-                return render(request, self.template_name, {'form': form,'message': f'Password reset link has been sent to {customer.email}'})
+                return render(request, self.template_name, {
+                    'form': form,
+                    'success_message': f'Password reset link has been sent to {email}'
+                })
             
             except Exception as e:
-                return render(request, self.template_name, {'form': form, 'error_message': f'Error sending email: {str(e)}'})        
+                return render(request, self.template_name, {
+                    'form': form, 
+                    'error_message': f'Error sending email: {str(e)}'
+                })        
         else:
             print("not sending...")
         
-        return render(request, self.template_name, {'form': form, 'error_message': error_check(form.errors.values())})
+        return render(request, self.template_name, {
+            'form': form, 
+            'error_message': error_check(form.errors.values())
+        })
 
 
 class ResetPasswordView(View):
     template_name = 'customer_website/reset_password.html'
     
     def get(self, request, username):
-        # Check if user has valid reset session
         if not request.session.get(f'password_reset_{username}'):
             return redirect('login')
         
@@ -1145,9 +1509,8 @@ class ResetPasswordView(View):
             return redirect('login')
     
     def post(self, request, username):
-        # Check if user has valid reset session
         if not request.session.get(f'password_reset_{username}'):
-            return redirect('login')
+            return redirect('login')        
         
         try:
             customer = Customer.objects.get(username=username)
@@ -1158,10 +1521,8 @@ class ResetPasswordView(View):
                 customer.password = new_password
                 customer.save()
                 
-                # Remove the reset session
                 request.session.pop(f'password_reset_{username}', None)
                 
-                # Return success page with redirect timer
                 return render(request, self.template_name, {
                     'form': form,
                     'username': username,

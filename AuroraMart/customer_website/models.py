@@ -2,52 +2,44 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from AuroraMart.models import User
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import make_password
 
-# Create your models here.
 class Customer(User):
     GENDER_CHOICES = [
         ('Male', 'Male'),
         ('Female', 'Female'),
-        ('Other', 'Other'),
-        ('Unspecified', 'Prefer not to say'),
     ]
     EMPLOYMENT_CHOICES = [
-        ('Employed', 'Employed'),
-        ('Unemployed', 'Unemployed'),
-        ('Student', 'Student'),
-        ('Retired', 'Retired'),
-        ('Self-employed', 'Self-employed'),
-    ]
-    EDUCATION_CHOICES = [
-        ('High School', 'High School'),
-        ('Diploma', 'Diploma'),
-        ('Bachelor', "Bachelor's Degree"),
-        ('Master', "Master's Degree"),
-        ('PhD', 'PhD'),
-    ]
-    HAS_CHILDREN_CHOICES = [
-        (True, 'Yes'),
-        (False, 'No'),
-    ]
-    OCCUPATION_CHOICES = [
         ('Full-time', 'Full-time'),
         ('Part-time', 'Part-time'),
-        ('Freelancer', 'Freelancer'),
-        ('Unemployed', 'Unemployed'),
+        ('Self-employed', 'Self-employed'),
         ('Student', 'Student'),
         ('Retired', 'Retired'),
+    ]
+    EDUCATION_CHOICES = [
+        ('Secondary', 'Secondary'),
+        ('Diploma', 'Diploma'),
+        ('Bachelor', 'Bachelor'),
+        ('Master', 'Master'),
+        ('Doctorate', 'Doctorate'),
+    ]
+    OCCUPATION_CHOICES = [
+        ('Admin', 'Administrative'),
+        ('Education', 'Education'),
+        ('Sales', 'Sales'),
+        ('Service', 'Service Industry'),
+        ('Skilled Trades', 'Skilled Trades'),
+        ('Tech', 'Technology'),
     ]
 
     customer_id = models.CharField(max_length=20, primary_key=True, unique=True,editable=False)
-    email = models.EmailField(max_length=254, default='default@gmail.com', help_text='Customer email address')
     age = models.IntegerField(null=True, blank=True)
     gender = models.CharField(max_length=50, choices=GENDER_CHOICES, null=True, blank=True)
     employment_status = models.CharField(max_length=100, choices=EMPLOYMENT_CHOICES, null=True, blank=True)
     occupation = models.CharField(max_length=100, choices=OCCUPATION_CHOICES, null=True, blank=True)
     education = models.CharField(max_length=100, choices=EDUCATION_CHOICES, null=True, blank=True)
     household_size = models.PositiveIntegerField(null=True, blank=True)
-    has_children = models.BooleanField(default=False, choices=HAS_CHILDREN_CHOICES)
+    number_of_children = models.PositiveIntegerField(default=0, null=True, blank=True)
     monthly_income_sgd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     preferred_category = models.CharField(max_length=100, null=True, blank=True,default='General')
     date_joined = models.DateTimeField(default=timezone.now, editable=False)

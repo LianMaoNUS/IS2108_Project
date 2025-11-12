@@ -18,8 +18,13 @@
             <img src="{% static 'customer_website/Logo.png' %}" alt="AuroraMart Logo" class="logo-img">
         </div>
 
-        <h1 class="welcome-title">Before you begin...</h1>
-        <h2 class="welcome-subtitle">Let's get some more details to personalize your experience</h2>
+        {% if is_profile_update %}
+            <h1 class="welcome-title">Update Your Profile</h1>
+            <h2 class="welcome-subtitle">Help us personalize your shopping experience even better</h2>
+        {% else %}
+            <h1 class="welcome-title">Before you begin...</h1>
+            <h2 class="welcome-subtitle">Let's get some more details to personalize your experience</h2>
+        {% endif %}
 
         <form method="post" class="login-form">
             {% csrf_token %}
@@ -70,8 +75,8 @@
                 </div>
 
                 <div class="form-field form-field-full">
-                    <label for="{{ form.has_children.id_for_label }}">Do you have children?</label>
-                    {{ form.has_children }}
+                    <label for="{{ form.number_of_children.id_for_label }}">Number of Children</label>
+                    {{ form.number_of_children }}
                 </div>
             </div>
 
@@ -87,14 +92,26 @@
 
             <button id="submit-btn" type="submit" class="submit-btn">
                 <span class="arrow"><i class="fas fa-arrow-right" style="margin-right: 8px;"></i></span>
-                <span class="button-text">Complete Setup</span>
+                <span class="button-text">
+                    {% if is_profile_update %}Update Profile{% else %}Complete Setup{% endif %}
+                </span>
                 <span class="spinner" style="display: none;"></span>
             </button>
+            
+            {% if not is_profile_update %}
+            <button type="submit" name="action" value="skip" formnovalidate class="skip-btn">
+                <span class="skip-text">Skip for now</span>
+            </button>
+            {% endif %}
         </form>
 
         <div style="margin-top: 1.5rem; font-size: 0.85rem; color: #888;">
             <i class="fas fa-shield-alt" style="margin-right: 5px;"></i>
-            Your information is secure and will only be used to improve your shopping experience.
+            {% if is_profile_update %}
+                Your updated information will help us provide better recommendations.
+            {% else %}
+                Your information is secure and will only be used to improve your shopping experience.
+            {% endif %}
         </div>
     </main>
 </body>

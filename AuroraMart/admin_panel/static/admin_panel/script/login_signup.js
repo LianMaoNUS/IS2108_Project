@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    loginForm = document.getElementById('login-form');
+    loginForm = document.querySelector('.login-form');
 
     if (loginForm) {
         loginForm.addEventListener('submit', function() {
@@ -33,5 +33,31 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.toggle('fa-eye-slash');
     });
 
+    if (passwordField) {
+        passwordField.addEventListener('input', function() {
+            const password = this.value;
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                lowercase: /[a-z]/.test(password),
+                digit: /[0-9]/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+            };
+
+            Object.keys(requirements).forEach(req => {
+                const li = document.getElementById('req-' + req);
+                const icon = li.querySelector('i');
+                if (requirements[req]) {
+                    li.classList.remove('invalid');
+                    li.classList.add('valid');
+                    icon.className = 'fa-solid fa-check';
+                } else {
+                    li.classList.remove('valid');
+                    li.classList.add('invalid');
+                    icon.className = 'fa-solid fa-times';
+                }
+            });
+        });
+    }
     
 });

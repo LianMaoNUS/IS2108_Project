@@ -35,8 +35,12 @@
             </div>
 
             {% if error_message %}
-            <div class="error-list" style="color: red; font-size: small;">
+            <div class="error-list" style="color: red; font-size: medium;">
                 <p class="error-message">{{ error_message }}</p>
+            </div>
+            {% elif success_message %}
+            <div class="error-list" style="color: green; font-size: medium;">
+                <p>{{ success_message }}</p>
             </div>
             {% endif %}
 

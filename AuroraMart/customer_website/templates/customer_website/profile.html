@@ -18,6 +18,28 @@
             <span class="current">My Profile</span>
         </div>
 
+        
+            {% if message or error_message %}
+            <div class="profile-message" id="profile-message">
+                {% if message %}
+                    <div class="alert alert-success">
+                        <i class="fa-solid fa-check-circle"></i> {{ message }}
+                        <button type="button" class="close-btn" onclick="closeMessage()">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                {% endif %}
+                {% if error_message %}
+                    <div class="alert alert-danger">
+                        <i class="fa-solid fa-exclamation-circle"></i> {{ error_message }}
+                        <button type="button" class="close-btn" onclick="closeMessage()">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
         <div class="profile-container">
             <div class="profile-header">
                 <div class="profile-info">
@@ -182,20 +204,6 @@
                                     {% endfor %}
                                 </div>
 
-                                {% if message or error_message %}
-                                <div class="order-message">
-                                    {% if message %}
-                                        <div class="alert alert-success">
-                                            <i class="fa-solid fa-check-circle"></i> {{ message }}
-                                        </div>
-                                    {% endif %}
-                                    {% if error_message %}
-                                        <div class="alert alert-danger">
-                                            <i class="fa-solid fa-exclamation-circle"></i> {{ error_message }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
                                 
                                 <!-- Order Total -->
                                 <div class="order-footer">
@@ -211,6 +219,77 @@
                         <div class="no-history">
                             <i class="fa-solid fa-box-open"></i>
                             <p>No order history available</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Coupons Section -->
+                <div class="coupons-section">
+                    <div class="coupons-header">
+                        <h2>My Coupons</h2>
+                        <div class="coupons-count">
+                            <span class="count-badge">{{ customer_coupons|length }}</span>
+                            <span>Available Coupons</span>
+                        </div>
+                    </div>
+                    
+                    {% if customer_coupons %}
+                        <div class="coupons-container">
+                            {% for coupon in customer_coupons %}
+                            <div class="coupon-card {% if not coupon.is_valid %}expired{% endif %}">
+                                <div class="coupon-header">
+                                    <div class="coupon-code">{{ coupon.code }}</div>
+                                    <div class="coupon-discount">{{ coupon.discount_percentage }}% OFF</div>
+                                </div>
+                                
+                                <div class="coupon-body">
+                                    {% if coupon.description %}
+                                        <p class="coupon-description">{{ coupon.description }}</p>
+                                    {% endif %}
+                                    
+                                    <div class="coupon-details">
+                                        <div class="detail-item">
+                                            <i class="fa-solid fa-calendar"></i>
+                                            <span>Valid until: {{ coupon.valid_until|date:"M d, Y" }}</span>
+                                        </div>
+                                        {% if coupon.minimum_order_value > 0 %}
+                                        <div class="detail-item">
+                                            <i class="fa-solid fa-dollar-sign"></i>
+                                            <span>Min. order: {{ currency_symbol }}{{ coupon.minimum_order_value|floatformat:2 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% if coupon.usage_limit > 0 %}
+                                        <div class="detail-item">
+                                            <i class="fa-solid fa-infinity"></i>
+                                            <span>Uses left: {{ coupon.uses_left }}</span>
+                                        </div>
+                                        {% endif %}
+                                        <div class="detail-item">
+                                            <i class="fa-solid fa-tags"></i>
+                                            <span>Valid for: {% if coupon.applicable_categories.exists %}{{ coupon.applicable_categories.all|join:", " }}{% else %}All Categories{% endif %}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="coupon-status">
+                                    {% if coupon.is_valid %}
+                                        <span class="status-badge valid">
+                                            <i class="fa-solid fa-check"></i> Valid
+                                        </span>
+                                    {% else %}
+                                        <span class="status-badge expired">
+                                            <i class="fa-solid fa-times"></i> Expired
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="no-coupons">
+                            <i class="fa-solid fa-ticket-alt"></i>
+                            <p>No coupons available</p>
+                            <small>Complete your profile or make a purchase to earn coupons!</small>
                         </div>
                     {% endif %}
                 </div>

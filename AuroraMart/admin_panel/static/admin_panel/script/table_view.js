@@ -1,11 +1,10 @@
-// Show modal if modal=true in URL
+// Show modal if action is in URL
 document.addEventListener('DOMContentLoaded', function () {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('modal') === 'true') {
-        const modal = document.getElementById('formModal');
-        if (modal) modal.style.display = 'block';
+    const modalShow = document.querySelector('.modal-show')?.textContent.trim();
+    console.log(modalShow == 'True');
+    if (modalShow == 'True') {
+        showModal();
     }
-
 });
 
 document.addEventListener('click', function (event) {
@@ -25,12 +24,10 @@ function updateRows(value) {
 
 function updateSort(value) {
     const type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
-    // get current rows selection
     const rowsSelect = document.querySelector('.table-controls .control-left select');
     const rows = rowsSelect ? rowsSelect.value : '10';
     const searchInput = document.querySelector('.search-form input[name="search"]');
     const searchQuery = searchInput ? searchInput.value : '';
-    // reset to first page when changing sort
     const pageParam = '1';
     let url = `?type=${encodeURIComponent(type)}&page=${pageParam}&rows=${encodeURIComponent(rows)}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}&sort_by=${encodeURIComponent(value)}`;
     window.location.href = url;
@@ -42,14 +39,14 @@ function toggleSelectAll(checkbox) {
 }
 
 function addRecord() {
-    var type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
-    var url = `?type=${type}&action=Add&modal=true`;
+    const type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
+    const url = `?type=${type}&action=Add`;
     window.location.href = url;
 }
 
 function editRecord(id) {
-    var type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
-    var url = `?type=${type}&action=Update&id=${id}&modal=true`;
+    const type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
+    const url = `?type=${type}&action=Update&id=${id}`;
     window.location.href = url;
 }
 
@@ -60,15 +57,19 @@ function deleteRecord(id) {
     }
 }
 
+function showModal() {
+    const modal = document.getElementById('formModal');
+    if (modal) modal.style.display = 'block';
+}
+
 function closeModal() {
-    document.getElementById('formModal').style.display = 'none';
-    if (window.location.search.includes('modal=true')) {
-        const url = new URL(window.location.href);
-        const type = url.searchParams.get('type');
-        url.search = type ? `?type=${type}` : '';
-        window.history.replaceState({}, document.title, url.pathname + url.search);
-        window.location.reload();
-    }
+    const modal = document.getElementById('formModal');
+    if (modal) modal.style.display = 'none';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('action');
+    url.searchParams.delete('id');
+    url.searchParams.delete('category');
+    window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
 function deleteSelected() {
