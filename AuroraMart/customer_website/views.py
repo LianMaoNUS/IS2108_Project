@@ -531,6 +531,9 @@ class mainpageview(View):
         convert_product_prices(products, currency_context['currency_info'])
         convert_product_prices(top_products, currency_context['currency_info'])
 
+        # Generate recommendation reason
+        recommendation_reason = f"you selected '{user.preferred_category}' as your interest during onboarding"
+
         context = {
             'username': request.session.get('customer_username'),
             'profile_picture': request.session.get('customer_profile_picture'),
@@ -539,6 +542,8 @@ class mainpageview(View):
             'products': products,
             'top_products': top_products,
             'cart_count': get_cart_count(request),
+            'preferred_category': user.preferred_category,
+            'recommendation_reason': recommendation_reason,
         }
         context.update(currency_context)
 

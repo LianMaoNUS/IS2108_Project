@@ -234,6 +234,64 @@ a.btn:focus {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Recommendation Explanation Banner */
+.recommendation-explanation {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.recommendation-explanation i {
+    font-size: 22px;
+    flex-shrink: 0;
+    color: #FFD700;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+}
+
+.recommendation-explanation p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+/* Responsive styling for explanation banner */
+@media (max-width: 768px) {
+    .recommendation-explanation {
+        padding: 12px 15px;
+    }
+    
+    .recommendation-explanation i {
+        font-size: 20px;
+    }
+    
+    .recommendation-explanation p {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .recommendation-explanation {
+        padding: 10px 12px;
+    }
+    
+    .recommendation-explanation i {
+        font-size: 18px;
+    }
+    
+    .recommendation-explanation p {
+        font-size: 13px;
+    }
+}
+
 .nav-arrows .arrow {
     background-color: #F9F5FF;
     color: #7F56D9;
