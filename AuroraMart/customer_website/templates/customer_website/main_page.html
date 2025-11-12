@@ -71,6 +71,12 @@
 
             </div>
 
+            <!-- Recommendation Explanation -->
+            <div class="recommendation-explanation">
+                <i class="fas fa-lightbulb"></i>
+                <p>We recommend these items because {{ recommendation_reason }}</p>
+            </div>
+
             <div class="product-grid-horizontal" id="product-grid">
 
                 {% for product in products %}
