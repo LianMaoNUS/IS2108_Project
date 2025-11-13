@@ -119,6 +119,42 @@
                                 {{ checkout_form.non_field_errors }}
                             </div>
                         {% endif %}
+                                                <div class="form-section">
+                            <h3><i class="fa-solid fa-ticket-alt"></i> Coupon Code</h3>
+                            {% if coupon_error %}
+                            <div class="alert alert-danger">
+                                <i class="fa-solid fa-exclamation-triangle"></i> {{ coupon_error }}
+                            </div>
+                            {% endif %}
+                            {% if available_coupons %}
+                            <div class="form-group full-width">
+                                <label for="coupon_select">Select Coupon (Optional)</label>
+                                <select id="coupon_select" class="form-control" onchange="selectCoupon(this.value)">
+                                    <option value="">-- Choose a coupon --</option>
+                                    {% for coupon in available_coupons %}
+                                    <option value="{{ coupon.code }}" 
+                                            data-discount="{{ coupon.discount_percentage }}" 
+                                            data-min-order="{{ coupon.minimum_order_value }}"
+                                            {% if selected_coupon_code and coupon.code == selected_coupon_code %}selected{% endif %}>
+                                        {{ coupon.code }} - {{ coupon.discount_percentage }}% off 
+                                        {% if coupon.minimum_order_value > 0 %}
+                                        (Min. {{ currency_symbol }}{{ coupon.minimum_order_value }})
+                                        {% endif %}
+                                        - Valid until {{ coupon.valid_until|date:"M d, Y" }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+                            <div class="form-group full-width">
+                                <label for="{{ checkout_form.coupon_code.id_for_label }}">Or Enter Coupon Code Manually</label>
+                                {{ checkout_form.coupon_code }}
+                                {% if checkout_form.coupon_code.errors %}
+                                    <div class="error-message">{{ checkout_form.coupon_code.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-help">Enter your coupon code to get a discount (optional)</small>
+                            </div>
+                        </div>
                         
                         <!-- Shipping Information -->
                         <div class="form-section">
@@ -242,42 +278,6 @@
                             </div>
                         </div>
 
-                        <div class="form-section">
-                            <h3><i class="fa-solid fa-ticket-alt"></i> Coupon Code</h3>
-                            {% if coupon_error %}
-                            <div class="alert alert-danger">
-                                <i class="fa-solid fa-exclamation-triangle"></i> {{ coupon_error }}
-                            </div>
-                            {% endif %}
-                            {% if available_coupons %}
-                            <div class="form-group full-width">
-                                <label for="coupon_select">Select Coupon (Optional)</label>
-                                <select id="coupon_select" class="form-control" onchange="selectCoupon(this.value)">
-                                    <option value="">-- Choose a coupon --</option>
-                                    {% for coupon in available_coupons %}
-                                    <option value="{{ coupon.code }}" 
-                                            data-discount="{{ coupon.discount_percentage }}" 
-                                            data-min-order="{{ coupon.minimum_order_value }}"
-                                            {% if selected_coupon_code and coupon.code == selected_coupon_code %}selected{% endif %}>
-                                        {{ coupon.code }} - {{ coupon.discount_percentage }}% off 
-                                        {% if coupon.minimum_order_value > 0 %}
-                                        (Min. {{ currency_symbol }}{{ coupon.minimum_order_value }})
-                                        {% endif %}
-                                        - Valid until {{ coupon.valid_until|date:"M d, Y" }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            {% endif %}
-                            <div class="form-group full-width">
-                                <label for="{{ checkout_form.coupon_code.id_for_label }}">Or Enter Coupon Code Manually</label>
-                                {{ checkout_form.coupon_code }}
-                                {% if checkout_form.coupon_code.errors %}
-                                    <div class="error-message">{{ checkout_form.coupon_code.errors.0 }}</div>
-                                {% endif %}
-                                <small class="form-help">Enter your coupon code to get a discount (optional)</small>
-                            </div>
-                        </div>
                         
                         <div class="form-section">
                             <h3><i class="fa-solid fa-sticky-note"></i> Order Notes</h3>

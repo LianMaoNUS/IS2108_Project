@@ -289,16 +289,14 @@ class Coupon(models.Model):
     
     is_active = models.BooleanField(default=True)
     
-    # Optional: restrict to specific main categories only
     applicable_categories = models.ManyToManyField(
         Category, 
         blank=True, 
         related_name='coupons',
         help_text="Main categories this coupon applies to (leave empty for all)",
-        limit_choices_to={'parent_category__isnull': True}  # Only main categories
+        limit_choices_to={'parent_category__isnull': True}
     )
     
-    # Optional: restrict to specific customers only
     assigned_customers = models.ManyToManyField(
         'customer_website.Customer',
         blank=True,
@@ -318,9 +316,8 @@ class Coupon(models.Model):
         super().save(*args, **kwargs)
 
     def is_valid(self):
-        """Check if coupon is currently valid"""
         from django.utils import timezone
-        now = timezone.now().date()  # Compare dates only
+        now = timezone.now().date() 
         return (
             self.is_active and
             self.valid_from <= now <= self.valid_until and
@@ -328,11 +325,8 @@ class Coupon(models.Model):
         )
 
     def can_be_used_by(self, customer):
-        """Check if customer can use this coupon"""
-        # If coupon is assigned to specific customers, check if this customer is assigned
         if self.assigned_customers.exists():
             return self.assigned_customers.filter(customer_id=customer.customer_id).exists()
-        # If no specific customers assigned, coupon can be used by anyone
         return True
 
     def calculate_discount(self, order_total, applicable_items=None):
