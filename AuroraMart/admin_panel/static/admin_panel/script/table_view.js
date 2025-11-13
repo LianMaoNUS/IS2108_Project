@@ -39,13 +39,13 @@ function toggleSelectAll(checkbox) {
 }
 
 function addRecord() {
-    const type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
+    const type = document.querySelector('.type-show')?.textContent.trim() || '';
     const url = `?type=${type}&action=Add`;
     window.location.href = url;
 }
 
 function editRecord(id) {
-    const type = window.tableViewType || document.querySelector('.type-show')?.textContent.trim() || '';
+    const type = document.querySelector('.type-show')?.textContent.trim() || '';
     const url = `?type=${type}&action=Update&id=${id}`;
     window.location.href = url;
 }
@@ -79,15 +79,25 @@ function deleteSelected() {
         return;
     }
     if (confirm(`Are you sure you want to delete ${selected.length} record(s)?`)) {
-        const type = window.tableViewType || '';
+        const type = document.querySelector('.type-show')?.textContent.trim() || '';
         window.location.href = `?type=${type}&action=Delete&id=${selected.join(',')}`;
     }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     function updateActionButtons() {
-        const anyChecked = document.querySelectorAll('.row-checkbox:checked').length > 0;
-        document.getElementById('exportCsvBtn').style.display = anyChecked ? 'inline-flex' : 'none';
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+        const anyChecked = checkedBoxes.length > 0;
+        const exportBtn = document.getElementById('exportCsvBtn');
+        if (exportBtn) {
+            exportBtn.style.display = anyChecked ? 'inline-flex' : 'none';
+            const type = document.querySelector('.type-show')?.textContent.trim() || '';
+            if (anyChecked) {
+                exportBtn.href = `?type=${type}&action=Export&export=csv&id=${checkedBoxes.join(',')}`;
+            } else {
+                exportBtn.href = `?type=${type}&action=Export&export=csv`;
+            }
+        }
         const deleteBtn = document.getElementById('deleteSelectedBtn');
         if (deleteBtn) deleteBtn.style.display = anyChecked ? 'inline-flex' : 'none';
     }

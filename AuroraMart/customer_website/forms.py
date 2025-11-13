@@ -49,12 +49,6 @@ class CustomerSignupForm(forms.Form):
             'placeholder': 'Enter a unique username' 
         }
     ))
-    email = forms.EmailField(widget=forms.EmailInput(
-        attrs={
-            'class': 'login_form',
-            'placeholder': 'Enter your email address'
-        }
-    ))
     password = forms.CharField(widget=forms.PasswordInput(
         attrs={
             'class': 'login_form',
@@ -69,16 +63,24 @@ class CustomerSignupForm(forms.Form):
         })
     )
 
-    def clean(self):
-        cleaned_data = super().clean()
-        username = cleaned_data.get('username')
-        password = cleaned_data.get('password')
-        password_check = cleaned_data.get('password_check')
-
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
         if username:
+            # Check format first
             username_status = check_username(username)
             if username_status != "Valid":
-                self.add_error('username', username_status)
+                raise forms.ValidationError(username_status)
+            
+            # Check if username already exists
+            if Customer.objects.filter(username=username).exists():
+                raise forms.ValidationError("This username is already taken. Please choose a different one.")
+        
+        return username
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_check = cleaned_data.get('password_check')
 
         if password:
             password_status = check_password(password, password_check)
@@ -516,6 +518,43 @@ class ResetPasswordForm(forms.Form):
             password_status = check_password(password, password_check)
             if password_status != "Valid":
                 self.add_error('password_check', password_status)
+        
+        return cleaned_data
+    
+class ForgotPasswordForm(forms.Form):
+    username = forms.CharField(widget=forms.TextInput(
+        attrs={
+            'class': 'login_form', 
+            'placeholder': 'Enter your username' 
+        }
+    ))
+    email = forms.EmailField(required=False, widget=forms.EmailInput(
+        attrs={
+            'class': 'login_form',
+            'placeholder': 'Enter your email address'
+        }
+    ))
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username:
+            # Check if username exists
+            if not Customer.objects.filter(username=username).exists():
+                raise forms.ValidationError("No account found with this username.")
+        return username
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        email = cleaned_data.get('email')
+        
+        # Only validate email if it's provided
+        if username and email:
+            # Check if username and email match
+            try:
+                customer = Customer.objects.get(username=username)
+            except Customer.DoesNotExist:
+                raise forms.ValidationError("No account found with this username.")
         
         return cleaned_data
     

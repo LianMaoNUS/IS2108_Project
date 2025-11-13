@@ -102,6 +102,10 @@
             <button type="submit" name="action" value="skip" formnovalidate class="skip-btn">
                 <span class="skip-text">Skip for now</span>
             </button>
+            {% else %}
+            <button type="submit" name="action" value="skip" formnovalidate class="skip-btn">
+                <span class="skip-text">Continue later</span>
+            </button>
             {% endif %}
         </form>
 

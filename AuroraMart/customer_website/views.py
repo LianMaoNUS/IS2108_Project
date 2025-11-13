@@ -310,7 +310,7 @@ class signupview(View):
                 request.session['new_user'] = True
                 request.session['new_user_username'] = customer_username
                 request.session['new_user_password'] = form.cleaned_data.get('password')
-                request.session['new_user_email'] = form.cleaned_data.get('email')
+                request.session['updating_profile'] = False
                 return redirect('new_user')
             else:
                 form.add_error('password_check', "Passwords do not match")
@@ -319,6 +319,21 @@ class signupview(View):
                 "form": form, 
                 "error_message": error_check(form.errors.values())
             })
+
+
+class check_username_view(View):
+    def get(self, request, *args, **kwargs):
+        username = request.GET.get('username', '').strip()
+        
+        if not username:
+            return JsonResponse({'available': False, 'message': 'Username is required'})
+        
+        exists = Customer.objects.filter(username=username).exists()
+        
+        if exists:
+            return JsonResponse({'available': False, 'message': 'Username already exists'})
+        else:
+            return JsonResponse({'available': True, 'message': 'Username is available'})
 
 
 class new_userview(View):
@@ -366,20 +381,20 @@ class new_userview(View):
         return render(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
-        username = request.session.get('new_user_username')
-        password = request.session.get('new_user_password')
-        email = request.session.get('new_user_email')
         is_updating_profile = request.session.get('updating_profile', False)
-        
-        if not username or not password or not email:
+        if is_updating_profile:
+            username = request.session.get('customer_username')
+        else:
+            username = request.session.get('new_user_username')
+            password = request.session.get('new_user_password')
+        if not username:
             return render(request, 'customer_website/signup.html', {
                 "form": CustomerSignupForm(),
-                "error_message": ["Session expired. Please sign up again."]
+                "error_message": ["Session expired. Please sign up / log in again."]
             })
             
         if request.POST.get('action') == 'skip':
             if is_updating_profile:
-                # For logged-in users updating profile, just set preferred_category to 'none'
                 try:
                     customer = Customer.objects.get(username=username)
                     customer.preferred_category = 'none'
@@ -388,20 +403,28 @@ class new_userview(View):
                 except Customer.DoesNotExist:
                     pass
             else:
-                # For new users, create customer with preferred_category='none'
                 customer = Customer(
                     username=username,
                     password=password,
-                    email=email,
                     preferred_category='none'
                 )
                 customer.save()
+                Coupon.objects.create(
+                    code=f'WELCOME10{customer.customer_id[10:15].upper()}',
+                    discount_percentage=10,
+                    description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
+                    valid_from=datetime.now(),
+                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    usage_limit=1,
+                    minimum_order_value=Decimal('50.00'),
+                    maximum_discount=Decimal('50.00'),
+                    is_active=True
+                ).assigned_customers.add(customer)
                 
                 request.session['customer_hasLogin'] = True
                 request.session['customer_username'] = username
                 request.session['customer_profile_picture'] = customer.profile_picture
             
-            # Clean up sessions
             request.session.pop('new_user', None)
             request.session.pop('new_user_username', None)
             request.session.pop('new_user_password', None)
@@ -411,7 +434,15 @@ class new_userview(View):
             
         form = self.customer_details_form_class(request.POST)
         
+        if is_updating_profile:
+            try:
+                customer = Customer.objects.get(username=username)
+                form = self.customer_details_form_class(request.POST, instance=customer)
+            except Customer.DoesNotExist:
+                pass
+        
         if form.is_valid():
+            print("Form is valid")
             customer_data = form.cleaned_data  
             customer_preferred = {
                 'age': customer_data.get('age'),
@@ -424,7 +455,7 @@ class new_userview(View):
                 'monthly_income_sgd': customer_data.get('monthly_income_sgd'),
             }
             preferred_category = predict_preferred_category(customer_preferred)
-            
+
             if is_updating_profile:
                 try:
                     customer = Customer.objects.get(username=username)
@@ -440,14 +471,14 @@ class new_userview(View):
                     customer.save()
 
                     Coupon.objects.create(
-                    code=f'DETAILS40{customer.username[0:4].upper()}',
+                    code=f'DETAILS40{customer.customer_id[10:15].upper()}',
                     discount_percentage=40,
                     description='40% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=datetime.now(),
                     valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
-                    maximum_discount_amount=Decimal('50.00'),
+                    maximum_discount=Decimal('50.00'),
                     is_active=True
                     ).assigned_customers.add(customer)
 
@@ -457,7 +488,6 @@ class new_userview(View):
                     customer = Customer(
                         username=username,
                         password=password,
-                        email=email,
                         age=customer_data.get('age'),
                         gender=customer_data.get('gender'),
                         employment_status=customer_data.get('employment_status'),
@@ -474,7 +504,6 @@ class new_userview(View):
                 customer = Customer(
                     username=username,
                     password=password,
-                    email=email,
                     age=customer_data.get('age'),
                     gender=customer_data.get('gender'),
                     employment_status=customer_data.get('employment_status'),
@@ -489,7 +518,7 @@ class new_userview(View):
                 customer.save()
     
                 Coupon.objects.create(
-                    code=f'WELCOME10{customer.username[0:4].upper()}',
+                    code=f'WELCOME10{customer.customer_id[10:15].upper()}',
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=datetime.now(),
@@ -509,6 +538,7 @@ class new_userview(View):
             request.session.pop('new_user_username', None)
             request.session.pop('new_user_password', None)
             request.session.pop('updating_profile', None)
+            request.session.pop('udating_profile', None)
             
             return redirect('customer_home')
         else:
@@ -530,8 +560,6 @@ class mainpageview(View):
         currency_context = get_currency_context(request)
         convert_product_prices(products, currency_context['currency_info'])
         convert_product_prices(top_products, currency_context['currency_info'])
-
-        # Generate recommendation reason
         recommendation_reason = f"you selected '{user.preferred_category}' as your interest during onboarding"
 
         context = {
@@ -587,17 +615,19 @@ class product_detailview(View):
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
-            
-            if not recommended_products.exists():
+            if recommended_products_sku == []:
                 preferred_category = request.session.get('preferred_category', None)
                 if preferred_category and preferred_category != 'none':
                     recommended_products = Product.objects.filter(
                         category__name=preferred_category
                     ).exclude(sku=sku)[:4]
-                    recommended_title = True
+                    recommended_title = 'Here are some popular products in your preferred category'
                 else:
                     recommended_products = Product.objects.order_by('-reorder_quantity').exclude(sku=sku)[:4]
-                    recommended_title = False
+                    recommended_title = 'Here are some popular products'
+            else:
+                recommended_title = 'Frequently Bought Together'
+
 
             convert_product_prices([product] + list(recommended_products), currency_context['currency_info'])
             
@@ -715,7 +745,6 @@ class cartview(View):
         item_list_sku = list(cart.keys())
         recommended_products_sku = get_recommendations(item_list_sku, metric='lift', top_n=5)
         recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
-            
         if not recommended_products.exists():
             preferred_category = request.session.get('preferred_category', None)
             recommended_products = Product.objects.filter(
@@ -1151,7 +1180,7 @@ class checkout_page(View):
                     coupon_cat = 'General'
 
             coupon = Coupon.objects.create(
-                code=f'REWARD{coupon_cat[0:3].upper()}{customer.username[0:4].upper()}',
+                code=f'REWARD{coupon_cat[0:3].upper()}{customer.customer_id[10:15].upper()}',
                 discount_percentage=5,
                 description=f'Thank you for your purchase! Enjoy this reward coupon for {coupon_cat} category. 5% discount (Up till S$20). Max 1 time use, min spend S$30',
                 valid_from=datetime.now(),
@@ -1160,7 +1189,7 @@ class checkout_page(View):
                 minimum_order_value=Decimal('30.00'),
                 maximum_discount=Decimal('20.00'),
                 is_active=True
-            )
+            ).assigned_customers.add(customer)
             
             # Set applicable category if it exists
             if coupon_cat != 'General':
@@ -1435,7 +1464,7 @@ class ForgotPasswordView(View):
         if username and not email:
             temp_form = ForgotPasswordForm({'username': username})
             if temp_form.is_valid():
-                form = ForgotPasswordForm(initial={'username': username})
+                form = ForgotPasswordForm({'username': username})
                 return render(request, self.template_name, {
                     'form': form, 
                     'show_email': True,
@@ -1449,6 +1478,7 @@ class ForgotPasswordView(View):
         
         if form.is_valid():
             username = form.cleaned_data['username']
+            print("USERNAME:", username)
             email = form.cleaned_data['email']
             customer = Customer.objects.get(username=username)
             
@@ -1488,10 +1518,8 @@ AuroraMart Team'''
             except Exception as e:
                 return render(request, self.template_name, {
                     'form': form, 
-                    'error_message': f'Error sending email: {str(e)}'
+                    'error_message': [f'Error sending email: {str(e)}']
                 })        
-        else:
-            print("not sending...")
         
         return render(request, self.template_name, {
             'form': form, 

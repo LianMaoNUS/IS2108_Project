@@ -8,4 +8,5 @@ urlpatterns = [
     path('list/', AdminTableView.as_view(), name='admin_list'), 
     path('logout/', logoutview, name='admin_logout'),
     path('profile/', profileSettingsView.as_view(), name='admin_profile'),
+    path('', loginview.as_view(), name='admin_home'),  # default to login
 ]

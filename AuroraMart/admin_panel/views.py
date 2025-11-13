@@ -22,18 +22,23 @@ from admin_panel.models import Admin, Order, Category, Product, OrderItem, Coupo
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
 
+
 def record_selector(request, model, type):
-    ids_param = request.GET.get('id', '')
-    ids_param = ids_param.replace('%2C', ',').replace('%2c', ',')
-    ids = [i for i in ids_param.split(',') if i]
-    
-    if ids:
-        queryset = model.objects.filter(pk__in=ids)
-        if type == 'delete':
-            return queryset.delete()
-        elif type == 'filter':
-            return queryset
+    ids_param = request.GET.get('id') or request.POST.get('id', '')
+    ids = [i.strip() for i in ids_param.split(',') if i.strip()]
+
+    if not ids:
+        return None
+
+    queryset = model.objects.filter(pk__in=ids)
+
+    if type == 'delete':
+        result = queryset.delete()
+        return result
+    elif type == 'filter':
+        return queryset
     return None
+
 
 
 class loginview(View):
@@ -223,6 +228,8 @@ class AdminTableView(View):
         }
     }
 
+    # Use the module-level `record_selector` function (defined above)
+
     def dispatch(self, request, *args, **kwargs):
         self.view_type = request.GET.get('type', 'products') 
         self.config = self.view_configs.get(self.view_type)
@@ -235,9 +242,12 @@ class AdminTableView(View):
         model = self.config['model']
         action = self.request.GET.get('action')
         if action != 'Update':
+            print(f"Getting queryset for view type: {self.request} with action: {action}")
             queryset = record_selector(self.request, model, 'filter')
+           
         else:
             queryset = None
+
         if queryset is None:
             queryset = model.objects.all()
 
@@ -368,12 +378,11 @@ class AdminTableView(View):
         elif action == 'Delete':
             try:
                 record_selector(request, model, 'delete')
-                context = self._get_context_data(success_message=["Record(s) deleted successfully."])
+                target_type = request.GET.get('type') or self.view_type or 'products'
+                return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
             except Exception as e:
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
                 return render(request, self.template_name, context)
-            target_type = request.GET.get('type') or self.view_type or 'products'
-            return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
         else:
             form_to_display = form()
             if request.GET.get('category'):
@@ -395,15 +404,42 @@ class AdminTableView(View):
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
-        action = self.request.GET.get('action')
+        action = self.request.GET.get('action') or self.request.POST.get('action')
         model = self.config['model']
         form_instance = None
         form_class = None
 
+        #SELECTING INDV DOES NOT WORK, DELETING FROM ICON WORKS
+
+        if action == 'Delete':
+            try:
+                result = record_selector(request, model, 'delete')
+                if result is None:
+                    # No IDs provided or no records found
+                    context = self._get_context_data(error_message=["No records selected for deletion."])
+                    return render(request, self.template_name, context)
+                
+                # Check if deletion actually occurred
+                deleted_count = sum(result[0].values()) if isinstance(result, tuple) and len(result) > 0 else 0
+                if deleted_count == 0:
+                    context = self._get_context_data(error_message=["No records were deleted. They may not exist or may be protected."])
+                    return render(request, self.template_name, context)
+                
+                target_type = request.GET.get('type') or self.view_type or 'products'
+                return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
+            except Exception as e:
+                # Log the full exception for debugging
+                import traceback
+                error_details = traceback.format_exc()
+                print(f"Error deleting records: {str(e)}\n{error_details}")
+                
+                context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
+                return render(request, self.template_name, context)
+
         if action == 'Update':
             form_class = self.config['form']
             try:
-                instance_id = self.request.GET.get('id')
+                instance_id = self.request.GET.get('id') or self.request.POST.get('id')
                 form_instance = model.objects.get(pk=instance_id)
                 old_status = form_instance.status if model == Order else None
             except model.DoesNotExist:

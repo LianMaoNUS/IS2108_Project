@@ -33,7 +33,7 @@
                 <div class="hero-content">
                     <h2>Special Offers</h2>
                     <p>Don't miss out on our limited-time deals</p>
-                    <a href="#top-products" class="btn btn-primary">View Deals</a>
+                    <a href="{% url 'profile' %}#coupons" class="btn btn-primary">View Discounts</a>
                 </div>
             </div>
         </div>
@@ -72,7 +72,6 @@
 
             </div>
 
-            <!-- Recommendation Explanation -->
             <div class="recommendation-explanation">
                 <i class="fas fa-lightbulb"></i>
                 <p>We recommend these items because {{ recommendation_reason }}</p>

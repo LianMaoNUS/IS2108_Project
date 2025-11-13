@@ -25,6 +25,7 @@
         <a href="?type={{ type }}&export=csv" class="btn btn-secondary" id="exportCsvBtn" style="display:none;">
             <i class="fas fa-download"></i> Export CSV
         </a>
+
         {% if user_role == 'EDITOR' %}
         <button type="button" class="btn btn-danger btn-sm" id="deleteSelectedBtn" style="display:none;" onclick="deleteSelected()">
             <i class="fas fa-trash"></i> Delete Selected

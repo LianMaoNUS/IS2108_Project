@@ -374,6 +374,19 @@ class CouponForm(forms.ModelForm):
                 # No specific customers means "All Customers"
                 self.fields['assigned_customers'].initial = ''
 
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+        if code:
+            # Check for existing coupons with the same code, excluding current instance if updating
+            queryset = Coupon.objects.filter(code__iexact=code)
+            if self.instance and self.instance.pk:
+                # Exclude current instance when updating
+                queryset = queryset.exclude(pk=self.instance.pk)
+            
+            if queryset.exists():
+                raise forms.ValidationError("A coupon with this code already exists. Please choose a different code.")
+        return code
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         
