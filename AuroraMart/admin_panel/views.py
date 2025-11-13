@@ -396,6 +396,40 @@ class AdminTableView(View):
                 except Category.DoesNotExist:
                     pass
 
+        # If we're dealing with coupon usage form, allow pre-filtering of customer and order selects
+        try:
+            if self.view_type == 'couponusage' and form_to_display is not None:
+                coupon_param = request.GET.get('coupon')
+                customer_param = request.GET.get('customer') or request.GET.get('customer_id')
+
+                # If coupon specified, restrict customers to assigned customers or all if none assigned
+                if coupon_param and 'coupon' in form_to_display.fields:
+                    try:
+                        coupon_obj = Coupon.objects.get(pk=coupon_param)
+                        form_to_display.fields['coupon'].initial = coupon_obj.pk
+                        if 'customer' in form_to_display.fields:
+                            assigned = coupon_obj.assigned_customers.all()
+                            if assigned.exists():
+                                form_to_display.fields['customer'].queryset = assigned
+                            else:
+                                form_to_display.fields['customer'].queryset = Customer.objects.all()
+                    except Coupon.DoesNotExist:
+                        # leave default querysets
+                        pass
+
+                # If customer specified (or selected after coupon change), restrict orders to that customer
+                if customer_param and 'order' in form_to_display.fields:
+                    try:
+                        cust = Customer.objects.get(pk=customer_param)
+                        form_to_display.fields['order'].queryset = Order.objects.filter(customer=cust)
+                        form_to_display.fields['order'].initial = None
+                    except Customer.DoesNotExist:
+                        # leave default orders queryset
+                        pass
+        except Exception:
+            # Non-fatal; continue rendering the form with defaults
+            pass
+
         context = self._get_context_data(form=form_to_display)
         success = request.GET.get('success')
         if success:

@@ -119,8 +119,8 @@
                                 {{ checkout_form.non_field_errors }}
                             </div>
                         {% endif %}
-                                                <div class="form-section">
-                            <h3><i class="fa-solid fa-ticket-alt"></i> Coupon Code</h3>
+                            <div class="form-section">
+                            <h3 class="coupon-header"><i class="fa-solid fa-ticket-alt"></i> Coupon Code</h3>
                             {% if coupon_error %}
                             <div class="alert alert-danger">
                                 <i class="fa-solid fa-exclamation-triangle"></i> {{ coupon_error }}
@@ -136,7 +136,7 @@
                                             data-discount="{{ coupon.discount_percentage }}" 
                                             data-min-order="{{ coupon.minimum_order_value }}"
                                             {% if selected_coupon_code and coupon.code == selected_coupon_code %}selected{% endif %}>
-                                        {{ coupon.code }} - {{ coupon.discount_percentage }}% off 
+                                        {{ coupon.code }}&nbsp;&mdash;&nbsp;{{ coupon.discount_percentage }}% off 
                                         {% if coupon.minimum_order_value > 0 %}
                                         (Min. {{ currency_symbol }}{{ coupon.minimum_order_value }})
                                         {% endif %}
@@ -145,8 +145,7 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            {% endif %}
-                            <div class="form-group full-width">
+                             <div class="form-group full-width">
                                 <label for="{{ checkout_form.coupon_code.id_for_label }}">Or Enter Coupon Code Manually</label>
                                 {{ checkout_form.coupon_code }}
                                 {% if checkout_form.coupon_code.errors %}
@@ -154,6 +153,12 @@
                                 {% endif %}
                                 <small class="form-help">Enter your coupon code to get a discount (optional)</small>
                             </div>
+                            {% else %}
+                            <div class="no-coupons">
+                                <p>No available coupons at the moment.</p>
+                            </div>
+                            {% endif %}
+
                         </div>
                         
                         <!-- Shipping Information -->

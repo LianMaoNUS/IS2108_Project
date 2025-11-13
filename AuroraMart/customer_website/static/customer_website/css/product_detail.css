@@ -57,7 +57,6 @@ a.btn {
 }
 
 a.btn:visited, a.btn:hover {
-    color: white;
     text-decoration: none;
 }
 

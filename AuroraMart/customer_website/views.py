@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.http import JsonResponse
 import uuid
 from datetime import datetime
+import uuid
 from django.db.models import Case, When, Value, IntegerField, Q
 from admin_panel.forms import ReviewForm
 from datetime import timedelta
@@ -62,6 +63,26 @@ def convert_cart_prices(product, currency_info):
 def get_cart_count(request):
     cart = request.session.get('cart', {})
     return len(cart)
+
+
+def make_coupon_code(prefix, customer=None, coupon_cat=None, length=4):
+    base = str(prefix)
+    if customer:
+        try:
+            base += customer.customer_id[10:15].upper()
+        except Exception:
+            pass
+    elif coupon_cat:
+        base += coupon_cat[:3].upper()
+
+    for _ in range(5):
+        suffix = uuid.uuid4().hex[:length].upper()
+        candidate = f"{base}{suffix}"
+        if not Coupon.objects.filter(code=candidate).exists():
+            return candidate
+
+    # Fallback: numeric timestamp-based suffix
+    return f"{base}{int(datetime.now().timestamp()) % (10 ** length):0{length}d}"
 
 model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
 def predict_preferred_category(customer_data):
@@ -410,7 +431,7 @@ class new_userview(View):
                 )
                 customer.save()
                 Coupon.objects.create(
-                    code=f'WELCOME10{customer.customer_id[10:15].upper()}',
+                    code=make_coupon_code('WELCOME10', customer=customer),
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=datetime.now(),
@@ -420,6 +441,7 @@ class new_userview(View):
                     maximum_discount=Decimal('50.00'),
                     is_active=True
                 ).assigned_customers.add(customer)
+                
                 
                 request.session['customer_hasLogin'] = True
                 request.session['customer_username'] = username
@@ -471,7 +493,7 @@ class new_userview(View):
                     customer.save()
 
                     Coupon.objects.create(
-                    code=f'DETAILS40{customer.customer_id[10:15].upper()}',
+                    code=make_coupon_code('DETAILS40', customer=customer),
                     discount_percentage=40,
                     description='40% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=datetime.now(),
@@ -518,7 +540,7 @@ class new_userview(View):
                 customer.save()
     
                 Coupon.objects.create(
-                    code=f'WELCOME10{customer.customer_id[10:15].upper()}',
+                    code=make_coupon_code('WELCOME10', customer=customer),
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=datetime.now(),
@@ -929,7 +951,30 @@ class checkout_page(View):
                     assigned_customers=customer
                 ).exclude(usages__customer=customer)
                 
-                available_coupons = (general_coupons | assigned_coupons).distinct().order_by('valid_until')
+                merged = (general_coupons | assigned_coupons).distinct().order_by('valid_until')
+                currency_rate = currency_context['currency_info']['rate']
+                try:
+                    subtotal_in_sgd = (totals['subtotal'] / currency_rate).quantize(Decimal('0.01'))
+                except Exception:
+                    subtotal_in_sgd = None
+
+                filtered = []
+                for c in merged:
+                    try:
+                        if not c.is_valid():
+                            continue
+                        if not c.can_be_used_by(customer):
+                            continue
+                        if subtotal_in_sgd is not None and c.minimum_order_value and c.minimum_order_value > 0:
+                            # only include if cart subtotal (SGD) meets coupon minimum
+                            if subtotal_in_sgd < c.minimum_order_value:
+                                continue
+                        filtered.append(c)
+                    except Exception:
+                        # If any coupon method raises, skip that coupon
+                        continue
+
+                available_coupons = filtered
             except Customer.DoesNotExist:
                 available_coupons = Coupon.objects.none()
         else:
@@ -1071,7 +1116,6 @@ class checkout_page(View):
         }
 
     def _process_order(self, request, form_data, cart_items, totals):
-        """Process the order and create database records"""
         try:
             username = request.session.get('customer_username')
             customer = Customer.objects.get(username=username)
@@ -1168,19 +1212,46 @@ class checkout_page(View):
                 coupon.save()
             
             order.save()
-            recommended_cat = get_recommendations([item['sku'] for item in cart_items], top_n=1)[0]
-            if recommended_cat == []:
-                recommended_cat = customer.preferred_category.name if customer.preferred_category else 'General'
-                coupon_cat = customer.preferred_category.name if customer.preferred_category else 'General'
-            else:           
+            recommended_list = get_recommendations([item['sku'] for item in cart_items], top_n=1)
+
+            pref_cat = None
+            cust_pref = getattr(customer, 'preferred_category', None)
+            if isinstance(cust_pref, Category):
+                pref_cat = cust_pref.name
+            elif isinstance(cust_pref, str):
+                cleaned = cust_pref.strip()
+                if cleaned and cleaned.lower() != 'none':
+                    pref_cat = cleaned
+
+            coupon_cat = None
+            if recommended_list:
+                recommended_sku = recommended_list[0]
                 try:
-                    recommended_product = Product.objects.get(sku=recommended_cat)
-                    coupon_cat = recommended_product.category.name if recommended_product.category else 'General'
+                    recommended_product = Product.objects.get(sku=recommended_sku)
+                    if recommended_product.category and recommended_product.category.name:
+                        coupon_cat = recommended_product.category.name
                 except Product.DoesNotExist:
-                    coupon_cat = 'General'
+                    pass
+
+            if not coupon_cat and pref_cat:
+                coupon_cat = pref_cat
+
+            if not coupon_cat:
+                coupon_cat = 'General'
+
+            prefix = f'REWARD{coupon_cat[0:3].upper()}'
+            code = None
+            for _ in range(10):
+                suffix = uuid.uuid4().hex[:5].upper()
+                candidate = f"{prefix}{suffix}"
+                if not Coupon.objects.filter(code=candidate).exists():
+                    code = candidate
+                    break
+            if code is None:
+                code = f"{prefix}{int(datetime.now().timestamp()) % 100000:05d}"
 
             coupon = Coupon.objects.create(
-                code=f'REWARD{coupon_cat[0:3].upper()}{customer.customer_id[10:15].upper()}',
+                code=code,
                 discount_percentage=5,
                 description=f'Thank you for your purchase! Enjoy this reward coupon for {coupon_cat} category. 5% discount (Up till S$20). Max 1 time use, min spend S$30',
                 valid_from=datetime.now(),
@@ -1189,7 +1260,8 @@ class checkout_page(View):
                 minimum_order_value=Decimal('30.00'),
                 maximum_discount=Decimal('20.00'),
                 is_active=True
-            ).assigned_customers.add(customer)
+            )
+            coupon.assigned_customers.add(customer)
             
             # Set applicable category if it exists
             if coupon_cat != 'General':

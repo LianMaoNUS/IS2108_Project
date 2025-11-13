@@ -166,7 +166,7 @@
             {% if admin_details %}
             <h3>Edit Admin Details</h3>
             {% else %}
-            <h3>{% if action == 'Update' %}Edit{% else %}Add New{% endif %} {{ page_title|slice:":-1" }}</h3>
+            <h3>{% if action == 'Update' %}Edit{% else %}Add New{% endif %} {{ page_title }}</h3>
             {% endif %}
             <button type="button" class="modal-close" onclick="closeModal()">
                 <i class="fas fa-times"></i>

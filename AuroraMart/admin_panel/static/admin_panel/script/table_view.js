@@ -66,9 +66,11 @@ function closeModal() {
     const modal = document.getElementById('formModal');
     if (modal) modal.style.display = 'none';
     const url = new URL(window.location.href);
-    url.searchParams.delete('action');
-    url.searchParams.delete('id');
-    url.searchParams.delete('category');
+    url.searchParams.forEach((value, key) => {
+        if (key !== 'type') {
+            url.searchParams.delete(key);
+        }
+    });
     window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
@@ -170,3 +172,30 @@ function updateSort(value) {
     url.searchParams.set('sort_by', value);
     window.location.href = url.toString();
 }
+
+// When coupon selection changes in the modal form, update URL and reload
+function couponChanged(couponId) {
+    try {
+        const url = new URL(window.location.href);
+        if (couponId) {
+            url.searchParams.set('coupon', couponId);
+        } else {
+            url.searchParams.delete('coupon');
+        }
+        // replace history and reload so server repopulates dependent selects
+        window.history.replaceState({}, document.title, url.pathname + url.search);
+        window.location.reload();
+    } catch (e) {
+        console.debug('Unable to update URL coupon param', e);
+    }
+}
+
+// Attach listener to coupon select if present inside modal form
+document.addEventListener('DOMContentLoaded', function() {
+    const couponSelect = document.querySelector('#modalForm select[name="coupon"], #modalForm #id_coupon');
+    if (couponSelect) {
+        couponSelect.addEventListener('change', function(e) {
+            couponChanged(this.value);
+        });
+    }
+});

@@ -216,7 +216,7 @@ class CustomerForm(forms.ModelForm):
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['customer','status','shipping_address','order_notes']
+        fields = ['customer','status','shipping_address','order_notes','customer_email']
 
 class CategoryForm(forms.ModelForm):
     class Meta:
