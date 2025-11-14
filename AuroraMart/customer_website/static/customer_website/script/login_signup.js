@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     signupForm = document.getElementById('signup-form');
     if (signupForm) {
         signupForm.addEventListener('submit', function() {
-            signupButton = document.getElementById('login-button'); // Note: signup button has id="login-button"
+            signupButton = document.getElementById('login-button'); 
             buttonText = signupButton.querySelector('.button-text');
             spinner = signupButton.querySelector('.spinner');
             
@@ -45,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Password toggle functionality for signup and reset password forms
     togglePassword = document.querySelector('#togglePassword');
     passwordField = document.querySelector('#id_password');
 

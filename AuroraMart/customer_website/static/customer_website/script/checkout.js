@@ -1,6 +1,3 @@
-// Simplified Checkout JavaScript - UI Enhancement Only
-// All validation is handled server-side in Django
-
 document.addEventListener('DOMContentLoaded', function() {
     initializeCardFormatting();
     initializeFormSubmission();
@@ -35,7 +32,6 @@ function initializeCardFormatting() {
     }
 }
 
-// Card Number Formatting (Visual Enhancement)
 function formatCardNumber(input) {
     let value = input.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
     let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
@@ -45,7 +41,6 @@ function formatCardNumber(input) {
     }
 }
 
-// Card Type Detection (Visual Enhancement)
 function detectCardType(cardNumber, iconElement) {
     const number = cardNumber.replace(/\s/g, '');
     
@@ -75,7 +70,6 @@ function detectCardType(cardNumber, iconElement) {
     }
 }
 
-// Expiry Date Formatting (Visual Enhancement)
 function formatExpiryDate(input) {
     let value = input.value.replace(/\D/g, '');
     
@@ -86,7 +80,6 @@ function formatExpiryDate(input) {
     input.value = value;
 }
 
-// CVV Formatting (Visual Enhancement)
 function formatCVV(input) {
     input.value = input.value.replace(/\D/g, '').substring(0, 4);
 }
@@ -100,28 +93,23 @@ function initializeFormSubmission() {
         const submitButton = form.querySelector('.btn-place-order');
         
         if (submitButton) {
-            // Show loading state
             submitButton.classList.add('loading');
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...';
         }
         
     });
 }
 
-// Utility Functions
 function formatCurrency(amount, currencySymbol = '$') {
     return currencySymbol + parseFloat(amount).toFixed(2);
 }
 
-// Coupon Selection
 function selectCoupon(couponCode) {
     const couponInput = document.getElementById('coupon_code');
     if (couponInput) {
         couponInput.value = couponCode;
     }
     
-    // Add coupon code to URL and refresh page to update order summary
     const url = new URL(window.location);
     url.searchParams.set('coupon_code', couponCode);
     window.location.href = url.toString();
