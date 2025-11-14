@@ -53,3 +53,22 @@ class Customer(User):
 
     def __str__(self):
         return self.username
+
+
+class Wishlist(models.Model):
+    wishlist_id = models.CharField(max_length=20, primary_key=True, unique=True, editable=False)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='wishlists')
+    product = models.ForeignKey('admin_panel.Product', on_delete=models.CASCADE, related_name='wishlisted_by')
+    added_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['customer', 'product']
+        ordering = ['-added_date']
+
+    def save(self, *args, **kwargs):
+        if not self.wishlist_id:
+            self.wishlist_id = "WISH-" + str(uuid.uuid4())
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.customer.username} - {self.product.product_name}"

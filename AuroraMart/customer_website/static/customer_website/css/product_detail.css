@@ -369,6 +369,7 @@ a.btn:visited, a.btn:hover {
 .action-buttons {
     display: flex;
     gap: 1rem;
+    align-items: center;
 }
 
 .add-to-cart-btn, .buy-now-btn {
@@ -384,6 +385,95 @@ a.btn:visited, a.btn:hover {
 
 .add-to-cart-btn:hover, .buy-now-btn:hover {
     transform: translateY(-2px);
+}
+
+/* Wishlist Button */
+.btn-wishlist {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.btn-wishlist:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-wishlist i {
+    font-size: 1.5rem;
+    position: absolute;
+    transition: all 0.3s ease;
+}
+
+.wishlist-icon-empty {
+    color: rgba(255, 255, 255, 0.8);
+    opacity: 1;
+}
+
+.wishlist-icon-filled {
+    color: #e53e3e;
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+.btn-wishlist.in-wishlist .wishlist-icon-empty {
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+.btn-wishlist.in-wishlist .wishlist-icon-filled {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.btn-wishlist.in-wishlist {
+    background: rgba(229, 62, 62, 0.1);
+    border-color: rgba(229, 62, 62, 0.5);
+}
+
+.btn-wishlist.in-wishlist:hover {
+    background: rgba(229, 62, 62, 0.2);
+}
+
+.wishlist-notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: white;
+    color: #2d3748;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    font-weight: 600;
+}
+
+.wishlist-notification.show {
+    transform: translateX(0);
+}
+
+.wishlist-notification.success {
+    border-left: 4px solid #48bb78;
+}
+
+.wishlist-notification.error {
+    border-left: 4px solid #e53e3e;
+}
+
+.wishlist-notification.info {
+    border-left: 4px solid #4299e1;
 }
 
 /* Success state for added to cart */
