@@ -435,7 +435,8 @@ class CheckoutForm(forms.Form):
                     raise forms.ValidationError('This coupon is not active.')
                 
                 from django.utils import timezone
-                now = timezone.now().date()
+                # Use localdate() so validation compares dates in the project's timezone
+                now = timezone.localdate()
                 if not (coupon.valid_from <= now <= coupon.valid_until):
                     raise forms.ValidationError('This coupon is not valid at this time.')
                 

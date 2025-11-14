@@ -130,8 +130,7 @@
         <h2>Order Details</h2>
         <div class="order-info">
             <p><strong>Order Date:</strong> {{ order.order_date|date:"F d, Y g:i A" }}</p>
-            <p><strong>Payment Method:</strong> {{ order.payment_method|title }}</p>
-            <p><strong>Order Status:</strong> <span class="status-{{ order.order_status }}">{{ order.order_status|title }}</span></p>
+            <p><strong>Order Status:</strong> <span class="status-Pending">Pending</span></p>
             <p><strong>Shipping Address:</strong> {{ order.shipping_address }}</p>
             {% if order.order_notes %}
                 <p><strong>Order Notes:</strong> {{ order.order_notes }}</p>

@@ -19,6 +19,7 @@ import uuid
 from django.db.models import Case, When, Value, IntegerField, Q
 from admin_panel.forms import ReviewForm
 from datetime import timedelta
+from django.utils import timezone
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -434,8 +435,8 @@ class new_userview(View):
                     code=make_coupon_code('WELCOME10', customer=customer),
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
-                    valid_from=datetime.now(),
-                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    valid_from=timezone.localdate(),
+                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -496,8 +497,8 @@ class new_userview(View):
                     code=make_coupon_code('DETAILS40', customer=customer),
                     discount_percentage=40,
                     description='40% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
-                    valid_from=datetime.now(),
-                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    valid_from=timezone.localdate(),
+                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -543,8 +544,8 @@ class new_userview(View):
                     code=make_coupon_code('WELCOME10', customer=customer),
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
-                    valid_from=datetime.now(),
-                    valid_until=datetime.now().replace(year=datetime.now().year + 1),  # Valid for 1 year
+                    valid_from=timezone.localdate(),
+                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -574,15 +575,28 @@ class mainpageview(View):
 
     def get(self, request, *args, **kwargs):
         user = Customer.objects.get(username=request.session.get('customer_username'))
-        main_category = Category.objects.filter(name=user.preferred_category) if user.preferred_category != 'none' else Category.objects.none()
-        request.session['preferred_category'] = user.preferred_category
-        more_categories = Category.objects.filter(parent_category__isnull=True).exclude(name=user.preferred_category)[:5]
-        products = Product.objects.filter(category__in=main_category).distinct()[:12] if main_category else Product.objects.none()
+        pref = getattr(user, 'preferred_category', None)
+        request.session['preferred_category'] = pref
+
+        if pref and isinstance(pref, str) and pref.lower() != 'none':
+            # main_category: the single preferred category
+            main_category = Category.objects.filter(name=pref)
+            # more_categories: up to 11 other top-level categories
+            more_categories = Category.objects.filter(parent_category__isnull=True).exclude(name=pref)[:11]
+            products = Product.objects.filter(category__in=main_category).distinct()[:12]
+            recommendation_reason = f"you selected '{pref}' as your interest during onboarding"
+        else:
+            # No preferred category: present 12 categories total in the
+            # `more_categories` slot so the template shows them all.
+            main_category = Category.objects.none()
+            more_categories = Category.objects.filter(parent_category__isnull=True)[:12]
+            products = Product.objects.filter(category__in=more_categories).distinct()[:12]
+            recommendation_reason = 'Explore popular categories and products'
+
         top_products = Product.objects.order_by('-reorder_quantity')[:10]
         currency_context = get_currency_context(request)
         convert_product_prices(products, currency_context['currency_info'])
         convert_product_prices(top_products, currency_context['currency_info'])
-        recommendation_reason = f"you selected '{user.preferred_category}' as your interest during onboarding"
 
         context = {
             'username': request.session.get('customer_username'),
@@ -767,7 +781,8 @@ class cartview(View):
         item_list_sku = list(cart.keys())
         recommended_products_sku = get_recommendations(item_list_sku, metric='lift', top_n=5)
         recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
-        if not recommended_products.exists():
+        is_recommended = recommended_products.exists()
+        if not is_recommended:
             preferred_category = request.session.get('preferred_category', None)
             recommended_products = Product.objects.filter(
                 category__name=preferred_category
@@ -784,6 +799,7 @@ class cartview(View):
             'username': request.session.get('customer_username'),
             'profile_picture': request.session.get('customer_profile_picture'),
             'recommended_products': recommended_products,
+            'is_recommended': is_recommended,
         }
         context.update(currency_context)
         
@@ -969,6 +985,25 @@ class checkout_page(View):
                             # only include if cart subtotal (SGD) meets coupon minimum
                             if subtotal_in_sgd < c.minimum_order_value:
                                 continue
+                        # If coupon restricts applicable categories, ensure cart has at least one eligible item
+                        try:
+                            if c.applicable_categories.exists():
+                                eligible_cat_ids = set(c.applicable_categories.values_list('pk', flat=True))
+                                has_eligible = False
+                                for it in cart_items:
+                                    try:
+                                        prod = Product.objects.get(sku=it['sku'])
+                                    except Product.DoesNotExist:
+                                        continue
+                                    if prod and prod.category and prod.category.pk in eligible_cat_ids:
+                                        has_eligible = True
+                                        break
+                                if not has_eligible:
+                                    continue
+                        except Exception:
+                            # If category check fails, conservatively skip coupon
+                            continue
+
                         filtered.append(c)
                     except Exception:
                         # If any coupon method raises, skip that coupon
@@ -997,19 +1032,46 @@ class checkout_page(View):
                 elif CouponUsage.objects.filter(coupon=coupon, customer=customer).exists():
                     coupon_error = 'You have already used this coupon.'
                 else:
+                    # Determine eligible subtotal in SGD based on coupon applicable categories
                     subtotal_in_sgd = (totals['subtotal'] / currency_context['currency_info']['rate']).quantize(Decimal('0.01'))
-                    discount_amount = coupon.calculate_discount(subtotal_in_sgd)
-                    if discount_amount <= 0:
-                        coupon_error = 'The coupon does not apply to this order.'
+                    eligible_subtotal_sgd = subtotal_in_sgd
+                    try:
+                        if coupon.applicable_categories.exists():
+                            eligible_cat_ids = set(coupon.applicable_categories.values_list('pk', flat=True))
+                            eligible_sum = Decimal('0.00')
+                            for it in cart_items:
+                                try:
+                                    prod = Product.objects.get(sku=it['sku'])
+                                except Product.DoesNotExist:
+                                    continue
+                                if prod and prod.category and prod.category.pk in eligible_cat_ids:
+                                    # item['unit_price'] is in selected currency; convert to SGD
+                                    item_unit_sgd = (it['unit_price'] / currency_context['currency_info']['rate']).quantize(Decimal('0.01'))
+                                    eligible_sum += item_unit_sgd * it.get('quantity', 1)
+                            eligible_subtotal_sgd = eligible_sum
+                    except Exception:
+                        # If something fails, fall back to full subtotal
+                        eligible_subtotal_sgd = subtotal_in_sgd
+
+                    # If no eligible items, coupon does not apply
+                    if eligible_subtotal_sgd <= 0:
+                        coupon_error = 'The coupon does not apply to items in your cart.'
                     else:
-                        discount_amount = discount_amount * currency_context['currency_info']['rate']
-                        final_total = totals['total'] - discount_amount
+                        discount_amount = coupon.calculate_discount(eligible_subtotal_sgd)
+                        if discount_amount <= 0:
+                            coupon_error = 'The coupon does not apply to this order.'
+                        else:
+                            # convert discount back to display currency
+                            discount_amount = discount_amount * currency_context['currency_info']['rate']
+                            final_total = totals['total'] - discount_amount
                         
             except Coupon.DoesNotExist:
                 coupon_error = 'Invalid coupon code.'
         
         if selected_coupon_code:
             checkout_form.initial['coupon_code'] = selected_coupon_code
+            # persist selected coupon so it survives a full-page reload and form submit
+            request.session['selected_coupon_code'] = selected_coupon_code
 
         context = {
             'cart_items': cart_items,
@@ -1044,7 +1106,6 @@ class checkout_page(View):
             if order_result['success']:
                 request.session['cart'] = {}
                 request.session.modified = True
-                
                 return redirect('order_confirmation', order_id=order_result['order_id'])
             else:
                 print("Order processing error:", order_result['error'])
@@ -1130,13 +1191,14 @@ class checkout_page(View):
             coupon = None
             discount_amount = Decimal('0.00')
             coupon_code = form_data.get('coupon_code', '').strip()
+            if not coupon_code:
+                coupon_code = request.session.pop('selected_coupon_code', '').strip()
             
             if coupon_code:
                 
                 try:
                     coupon = Coupon.objects.get(code=coupon_code.upper())
                     
-                    # Validate coupon
                     if not coupon.is_valid():
                         return {
                             'success': False,
@@ -1155,8 +1217,30 @@ class checkout_page(View):
                             'error': 'You have already used this coupon.'
                         }
                     
-                    # Calculate discount
-                    discount_amount = coupon.calculate_discount(subtotal_in_sgd)
+                    eligible_subtotal_sgd = subtotal_in_sgd
+                    try:
+                        if coupon.applicable_categories.exists():
+                            eligible_cat_ids = set(coupon.applicable_categories.values_list('pk', flat=True))
+                            eligible_sum = Decimal('0.00')
+                            for it in cart_items:
+                                try:
+                                    prod = Product.objects.get(sku=it['sku'])
+                                except Product.DoesNotExist:
+                                    continue
+                                if prod and prod.category and prod.category.pk in eligible_cat_ids:
+                                    item_unit_sgd = (it['unit_price'] / currency_rate).quantize(Decimal('0.01'))
+                                    eligible_sum += item_unit_sgd * it.get('quantity', 1)
+                            eligible_subtotal_sgd = eligible_sum
+                    except Exception:
+                        eligible_subtotal_sgd = subtotal_in_sgd
+
+                    if eligible_subtotal_sgd <= 0:
+                        return {
+                            'success': False,
+                            'error': 'The coupon does not apply to items in the cart.'
+                        }
+
+                    discount_amount = coupon.calculate_discount(eligible_subtotal_sgd)
                     if discount_amount <= 0:
                         return {
                             'success': False,
@@ -1199,7 +1283,7 @@ class checkout_page(View):
                         'success': False,
                         'error': f'Product {item["sku"]} not found.'
                     }
-                
+            print(f"coupon: {coupon}")
             if coupon:
                 CouponUsage.objects.create(
                     coupon=coupon,
@@ -1233,6 +1317,25 @@ class checkout_page(View):
                 except Product.DoesNotExist:
                     pass
 
+            if not coupon_cat:
+                try:
+                    cat_qty = {}
+                    for it in cart_items:
+                        sku = it.get('sku')
+                        try:
+                            prod = Product.objects.get(sku=sku)
+                        except Product.DoesNotExist:
+                            continue
+                        if prod and prod.category and prod.category.name:
+                            name = prod.category.name
+                            cat_qty.setdefault(name, 0)
+                            cat_qty[name] += int(it.get('quantity', 0) or 0)
+
+                    if cat_qty:
+                        coupon_cat = min(cat_qty.items(), key=lambda kv: kv[1])[0]
+                except Exception:
+                    coupon_cat = None
+
             if not coupon_cat and pref_cat:
                 coupon_cat = pref_cat
 
@@ -1254,8 +1357,8 @@ class checkout_page(View):
                 code=code,
                 discount_percentage=5,
                 description=f'Thank you for your purchase! Enjoy this reward coupon for {coupon_cat} category. 5% discount (Up till S$20). Max 1 time use, min spend S$30',
-                valid_from=datetime.now(),
-                valid_until=datetime.now() + timedelta(days=90), 
+                valid_from=timezone.localdate(),
+                valid_until=timezone.localdate() + timedelta(days=90), 
                 usage_limit=1,
                 minimum_order_value=Decimal('30.00'),
                 maximum_discount=Decimal('20.00'),
@@ -1263,7 +1366,6 @@ class checkout_page(View):
             )
             coupon.assigned_customers.add(customer)
             
-            # Set applicable category if it exists
             if coupon_cat != 'General':
                 try:
                     category = Category.objects.get(name=coupon_cat)
@@ -1383,32 +1485,37 @@ class profile_page(View):
         
         review_form = ReviewForm()
         
-        # Get coupons available to this customer
-        general_coupons = Coupon.objects.filter(
+        # Use localdate() so date comparisons respect project timezone
+        today = timezone.localdate()
+        # Build a set of all relevant coupons (general + assigned) that the
+        # customer hasn't already used, then split into currently valid and
+        # expired for separate display sections.
+        all_relevant = (
+            Coupon.objects.filter(assigned_customers__isnull=True) |
+            Coupon.objects.filter(assigned_customers=customer)
+        ).distinct().exclude(usages__customer=customer)
+
+        customer_coupons = all_relevant.filter(
             is_active=True,
-            valid_from__lte=datetime.now(),
-            valid_until__gte=datetime.now(),
-            assigned_customers__isnull=True
-        ).exclude(usages__customer=customer)
-        
-        assigned_coupons = Coupon.objects.filter(
-            is_active=True,
-            valid_from__lte=datetime.now(),
-            valid_until__gte=datetime.now(),
-            assigned_customers=customer
-        ).exclude(usages__customer=customer)
-        
-        print("GENERAL COUPONS:", general_coupons, "ASSIGNED COUPONS:", assigned_coupons)
-        
-        customer_coupons = (general_coupons | assigned_coupons).distinct().order_by('valid_until')
-        
-        # Add uses_left attribute to each coupon
+            valid_from__lte=today,
+            valid_until__gte=today,
+        ).order_by('valid_until')
+
+        expired_coupons = all_relevant.exclude(pk__in=customer_coupons.values_list('pk', flat=True)).order_by('-valid_until')
+
         for coupon in customer_coupons:
             if coupon.usage_limit > 0:
                 coupon.uses_left = coupon.usage_limit - coupon.usage_count
             else:
                 coupon.uses_left = 'Unlimited'
-        
+
+        for coupon in expired_coupons:
+            if coupon.usage_limit > 0:
+                coupon.uses_left = max(0, coupon.usage_limit - coupon.usage_count)
+            else:
+                coupon.uses_left = 'Unlimited'
+
+        used_coupons = CouponUsage.objects.filter(customer=customer).order_by('used_at')
         context = {
             'customer': customer,
             'username': username,
@@ -1418,6 +1525,8 @@ class profile_page(View):
             'current_sort': sort_by,
             'review_form': review_form,
             'customer_coupons': customer_coupons,
+            'used_coupons': used_coupons,
+            'expired_coupons': expired_coupons,
         }
         context.update(currency_context)
         context.update(kwargs) 

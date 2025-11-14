@@ -483,17 +483,11 @@ a.btn:focus {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-.category-card[data-category-index="0"] .category-image-placeholder,
-.category-card[data-category-index="2"] .category-image-placeholder,
-.category-card[data-category-index="4"] .category-image-placeholder,
-.category-card[data-category-index="6"] .category-image-placeholder {
+.category-grid > .category-link:nth-child(odd) .category-image-placeholder {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.category-card[data-category-index="1"] .category-image-placeholder,
-.category-card[data-category-index="3"] .category-image-placeholder,
-.category-card[data-category-index="5"] .category-image-placeholder,
-.category-card[data-category-index="7"] .category-image-placeholder {
+.category-grid > .category-link:nth-child(even) .category-image-placeholder {
     background: linear-gradient(135deg, #a73bb3 0%, #a13240 100%);
 }
 

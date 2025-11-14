@@ -1,3 +1,4 @@
+from datetime import timedelta
 import uuid
 from django.db import models
 from django.db.models import Avg
@@ -6,6 +7,7 @@ from customer_website.models import Customer
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
+from django.utils import timezone
 
 # Create your models here.
 class Admin(User):
@@ -63,7 +65,6 @@ class Category(models.Model):
         return self
     
     class Meta:
-        # Ensures plural form is "Categories" in the admin panel
         verbose_name_plural = "Categories"
 
 class Product(models.Model):
@@ -149,14 +150,10 @@ class Order(models.Model):
     shipping_address = models.TextField(max_length=500,null=False, blank=False,default='')
     order_notes = models.TextField(max_length=1000, null=True, blank=True)
     
-    # Original total before any discounts
     subtotal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    # Discount applied
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    # Final total after discount
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
-    # Coupon information
     coupon = models.ForeignKey(
         'Coupon', 
         on_delete=models.SET_NULL, 
@@ -190,16 +187,13 @@ class Order(models.Model):
         if not coupon.can_be_used_by(self.customer):
             return False, "You are not eligible to use this coupon"
         
-        # Check if customer already used this coupon (if one-time use per customer)
         if CouponUsage.objects.filter(coupon=coupon, customer=self.customer).exists():
             return False, "You have already used this coupon"
         
-        # Calculate discount
         discount = coupon.calculate_discount(self.subtotal_amount)
         if discount <= 0:
             return False, "Coupon does not apply to this order"
         
-        # Apply discount
         self.coupon = coupon
         self.coupon_code = coupon.code
         self.discount_amount = discount
@@ -241,9 +235,8 @@ class Order(models.Model):
 class OrderItem(models.Model):
     OrderItem_id = models.CharField(max_length=20, primary_key=True, unique=True)
     order_id = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE) # Protect product history
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    # Store the price at the time of purchase to maintain historical accuracy.
     price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
 
     def save(self,*args, **kwargs):
@@ -316,8 +309,8 @@ class Coupon(models.Model):
         super().save(*args, **kwargs)
 
     def is_valid(self):
-        from django.utils import timezone
-        now = timezone.now().date() 
+        now = timezone.localdate() + timedelta(days=1)
+        print(now, self.valid_from, self.valid_until)
         return (
             self.is_active and
             self.valid_from <= now <= self.valid_until and
@@ -337,12 +330,11 @@ class Coupon(models.Model):
         if order_total < self.minimum_order_value:
             return 0.00
         
-        # Calculate percentage discount
         discount = (order_total * self.discount_percentage) / 100
         if self.maximum_discount and discount > self.maximum_discount:
             discount = self.maximum_discount
         
-        return min(discount, order_total)  # Don't exceed order total
+        return min(discount, order_total) 
 
 
 class CouponUsage(models.Model):

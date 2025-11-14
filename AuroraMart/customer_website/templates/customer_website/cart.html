@@ -109,9 +109,13 @@
         <section class="recommendations-section">
             <div class="section-header">
                 {% if cart_items %}
-                <h2>Complete the set</h2>
+                    {% if is_recommended %}
+                    <h2>Complete the set</h2>
+                    {% else %}
+                    <h2>You can also take a look at these products</h2>
+                    {% endif %}
                 {% else %}
-                <h2>Or you can take a look at these products</h2>
+                <h2>Recommended for you</h2>
                 {% endif %}
             </div>
             <div class="product-grid-horizontal">

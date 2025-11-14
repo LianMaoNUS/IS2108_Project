@@ -92,23 +92,27 @@
                                     <div class="order-item">
                                         <div class="item-image">
                                             {% if item.product.product_image %}
-                                                <img src="{{ item.product.product_image }}" alt="{{ item.product.product_name }}" class="product-image">
+                                                <a href="/product/{{ item.product.sku }}/" class="product-link">
+                                                    <img src="{{ item.product.product_image }}" alt="{{ item.product.product_name }}" class="product-image">
+                                                </a>
                                             {% else %}
-                                                <div class="placeholder-image">
-                                                    <i class="fa-solid fa-image"></i>
-                                                </div>
+                                                <a href="/product/{{ item.product.sku }}/" class="product-link">
+                                                    <div class="placeholder-image">
+                                                        <i class="fa-solid fa-image"></i>
+                                                    </div>
+                                                </a>
                                             {% endif %}
                                         </div>
                                         
                                         <div class="item-details">
-                                            <h4 class="item-name">{{ item.product.product_name }}</h4>
+                                            <h4 class="item-name"><a class="item-name-link" href="/product/{{ item.product.sku }}/">{{ item.product.product_name }}</a></h4>
                                             <p class="item-sku">SKU: {{ item.product.sku }}</p>
                                             
                                             <div class="item-quantity-price">
                                                 <span class="item-quantity">Qty: {{ item.quantity }}</span>
                                                 <div class="price-review-container">
                                                     {% if order.status == 'COMPLETED' %}
-                                                        <button type="button" class="btn-review-small" onclick="document.getElementById('reviewModal{{ item.product.sku }}').showModal()">
+                                                        <button type="button" class="btn-review-small" onclick="document.getElementById('reviewModal{{ item.product.sku }}').showModal(); event.stopPropagation(); return false;">
                                                             <i class="fa-solid fa-star"></i> Review
                                                         </button>
                                                     {% endif %}
@@ -223,7 +227,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Coupons Section -->
                 <div class="coupons-section" id="coupons">
                     <div class="coupons-header">
                         <h2>My Coupons</h2>
@@ -293,6 +296,108 @@
                         </div>
                     {% endif %}
                 </div>
+
+                {% if used_coupons %}
+                <div class="used-coupons-section" id="used_coupons">
+                    <div class="coupons-header">
+                        <h2>Used Coupons</h2>
+                        <div class="coupons-count">
+                            <span class="count-badge">{{ used_coupons|length }}</span>
+                            <span>Redeemed</span>
+                        </div>
+                    </div>
+                    <div class="coupons-container used-list">
+                        {% for usage in used_coupons %}
+                        <div class="coupon-card used">
+                            <div class="coupon-header">
+                                <div class="coupon-code">{{ usage.coupon.code }}</div>
+                                <div class="coupon-discount">{{ usage.coupon.discount_percentage }}% OFF</div>
+                            </div>
+                            <div class="coupon-body">
+                                {% if usage.coupon.description %}
+                                    <p class="coupon-description">{{ usage.coupon.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="coupon-body">
+                                <div class="coupon-details">
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-calendar"></i>
+                                        <span>Used on: {{ usage.used_at|date:"M d, Y" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-receipt"></i>
+                                        <span>Order: {{ usage.order.order_id }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-dollar-sign"></i>
+                                        <span>Saved: {{ currency_symbol }}{{ usage.discount_amount|floatformat:2 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="coupon-status">
+                                <span class="status-badge expired">
+                                    <i class="fa-solid fa-times"></i> Used
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if expired_coupons %}
+                <div class="expired-coupons-section" id="expired_coupons">
+                    <div class="coupons-header">
+                        <h2>Expired Coupons</h2>
+                        <div class="coupons-count">
+                            <span class="count-badge">{{ expired_coupons|length }}</span>
+                            <span>Previously Issued</span>
+                        </div>
+                    </div>
+                    <div class="coupons-container expired-list">
+                        {% for coupon in expired_coupons %}
+                        <div class="coupon-card expired">
+                            <div class="coupon-header">
+                                <div class="coupon-code">{{ coupon.code }}</div>
+                                <div class="coupon-discount">{{ coupon.discount_percentage }}% OFF</div>
+                            </div>
+                            <div class="coupon-body">
+                                {% if coupon.description %}
+                                    <p class="coupon-description">{{ coupon.description }}</p>
+                                {% endif %}
+                                <div class="coupon-details">
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-calendar"></i>
+                                        <span>Valid until: {{ coupon.valid_until|date:"M d, Y" }}</span>
+                                    </div>
+                                    {% if coupon.minimum_order_value > 0 %}
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-dollar-sign"></i>
+                                        <span>Min. order: {{ currency_symbol }}{{ coupon.minimum_order_value|floatformat:2 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if coupon.usage_limit > 0 %}
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-infinity"></i>
+                                        <span>Uses left: {{ coupon.uses_left }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="detail-item">
+                                        <i class="fa-solid fa-tags"></i>
+                                        <span>Valid for: {% if coupon.applicable_categories.exists %}{{ coupon.applicable_categories.all|join:", " }}{% else %}All Categories{% endif %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="coupon-status">
+                                <span class="status-badge expired">
+                                    <i class="fa-solid fa-times"></i> Expired
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="profile-menu">
                     <h2>Account Options</h2>
