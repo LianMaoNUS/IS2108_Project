@@ -20,7 +20,7 @@ import pandas as pd
 from admin_panel.models import Product, Category, Order, OrderItem, Review, Coupon, CouponUsage
 from admin_panel.forms import ReviewForm as AdminReviewForm # Renamed to avoid conflict
 
-from .models import Customer
+from .models import Customer, Wishlist
 from .forms import (
     CustomerLoginForm, CustomerSignupForm, CustomerForm,
     CheckoutForm, ForgotPasswordForm, ResetPasswordForm, ReviewForm
@@ -1768,3 +1768,143 @@ class ResetPasswordView(BaseView):
             })
         except Customer.DoesNotExist:
             return redirect('login')
+
+
+class wishlist_view(BaseView):
+    template_name = 'customer_website/wishlist.html'
+
+    def get(self, request, *args, **kwargs):
+        username = request.session.get('customer_username')
+        if not username:
+            return redirect('login')
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            wishlist_items = Wishlist.objects.filter(customer=customer).select_related('product')
+            
+            currency_context = get_currency_context(request)
+            
+            # Convert prices for wishlist items
+            wishlist_products = []
+            for wishlist_item in wishlist_items:
+                product = wishlist_item.product
+                converted_price = convert_cart_prices(product.unit_price, currency_context['currency_info'])
+                wishlist_products.append({
+                    'wishlist_id': wishlist_item.wishlist_id,
+                    'sku': product.sku,
+                    'product_name': product.product_name,
+                    'description': product.description,
+                    'unit_price': converted_price,
+                    'product_image': product.product_image,
+                    'product_rating': product.product_rating,
+                    'quantity_on_hand': product.quantity_on_hand,
+                    'added_date': wishlist_item.added_date,
+                })
+            
+            context = {
+                'wishlist_items': wishlist_products,
+                'wishlist_count': len(wishlist_products),
+            }
+            context.update(currency_context)
+            
+            return self.render_with_base(request, self.template_name, context)
+            
+        except Customer.DoesNotExist:
+            return redirect('login')
+
+
+class add_to_wishlist_view(BaseView):
+    def post(self, request, *args, **kwargs):
+        username = request.session.get('customer_username')
+        if not username:
+            return JsonResponse({'success': False, 'error': 'Please log in to add items to wishlist'}, status=401)
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            product_sku = request.POST.get('sku')
+            
+            if not product_sku:
+                return JsonResponse({'success': False, 'error': 'Product SKU is required'}, status=400)
+            
+            try:
+                product = Product.objects.get(sku=product_sku)
+            except Product.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Product not found'}, status=404)
+            
+            # Check if already in wishlist
+            wishlist_item, created = Wishlist.objects.get_or_create(
+                customer=customer,
+                product=product
+            )
+            
+            if created:
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Product added to wishlist',
+                    'in_wishlist': True
+                })
+            else:
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Product already in wishlist',
+                    'in_wishlist': True
+                })
+                
+        except Customer.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Customer not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+class remove_from_wishlist_view(BaseView):
+    def post(self, request, *args, **kwargs):
+        username = request.session.get('customer_username')
+        if not username:
+            return JsonResponse({'success': False, 'error': 'Please log in'}, status=401)
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            product_sku = request.POST.get('sku')
+            
+            if not product_sku:
+                return JsonResponse({'success': False, 'error': 'Product SKU is required'}, status=400)
+            
+            try:
+                product = Product.objects.get(sku=product_sku)
+                wishlist_item = Wishlist.objects.get(customer=customer, product=product)
+                wishlist_item.delete()
+                
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Product removed from wishlist',
+                    'in_wishlist': False
+                })
+                
+            except Product.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Product not found'}, status=404)
+            except Wishlist.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Product not in wishlist'}, status=404)
+                
+        except Customer.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Customer not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+class check_wishlist_status_view(BaseView):
+    def get(self, request, *args, **kwargs):
+        username = request.session.get('customer_username')
+        product_sku = request.GET.get('sku')
+        
+        if not username or not product_sku:
+            return JsonResponse({'in_wishlist': False})
+        
+        try:
+            customer = Customer.objects.get(username=username)
+            product = Product.objects.get(sku=product_sku)
+            in_wishlist = Wishlist.objects.filter(customer=customer, product=product).exists()
+            
+            return JsonResponse({'in_wishlist': in_wishlist})
+            
+        except (Customer.DoesNotExist, Product.DoesNotExist):
+            return JsonResponse({'in_wishlist': False})

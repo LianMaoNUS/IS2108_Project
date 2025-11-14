@@ -1,0 +1,200 @@
+{% extends 'customer_website/base.html' %}
+{% load static %}
+
+{% block title %}My Wishlist - AuroraMart{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'customer_website/css/wishlist.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="wishlist-container">
+    <div class="wishlist-header">
+        <h1><i class="fa-solid fa-heart"></i> My Wishlist</h1>
+        <p class="wishlist-count">{{ wishlist_count }} item{{ wishlist_count|pluralize }}</p>
+    </div>
+
+    {% if wishlist_items %}
+    <div class="wishlist-grid">
+        {% for item in wishlist_items %}
+        <div class="wishlist-card" data-sku="{{ item.sku }}">
+            <button class="remove-wishlist-btn" onclick="removeFromWishlist('{{ item.sku }}')" title="Remove from wishlist">
+                <i class="fa-solid fa-times"></i>
+            </button>
+            
+            <a href="{% url 'product_detail' item.sku %}?currency={{ selected_currency }}" class="wishlist-product-link">
+                <div class="wishlist-product-image">
+                    {% if item.product_image %}
+                        <img src="{{ item.product_image }}" alt="{{ item.product_name }}">
+                    {% else %}
+                        <div class="image-placeholder">
+                            <i class="fa-solid fa-image"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="wishlist-product-info">
+                    <h3 class="product-name">{{ item.product_name }}</h3>
+                    
+                    <div class="product-rating">
+                        <div class="stars-small">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= item.product_rating %}
+                                    <i class="fa-solid fa-star"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="rating-value">{{ item.product_rating }}</span>
+                    </div>
+                    
+                    <p class="product-description">{{ item.description|truncatewords:15 }}</p>
+                    
+                    <div class="product-price-section">
+                        <p class="product-price">{{ currency_symbol }}{{ item.unit_price }}</p>
+                        
+                        {% if item.quantity_on_hand > 0 %}
+                            <span class="stock-status in-stock">
+                                <i class="fa-solid fa-check-circle"></i> In Stock
+                            </span>
+                        {% else %}
+                            <span class="stock-status out-of-stock">
+                                <i class="fa-solid fa-times-circle"></i> Out of Stock
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="added-date">Added on {{ item.added_date|date:"M d, Y" }}</p>
+                </div>
+            </a>
+            
+            <div class="wishlist-card-actions">
+                <a href="{% url 'product_detail' item.sku %}?currency={{ selected_currency }}" class="btn btn-primary">
+                    <i class="fa-solid fa-eye"></i> View Product
+                </a>
+                {% if item.quantity_on_hand > 0 %}
+                <button class="btn btn-secondary" onclick="addToCartFromWishlist('{{ item.sku }}')">
+                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-wishlist">
+        <div class="empty-wishlist-icon">
+            <i class="fa-regular fa-heart"></i>
+        </div>
+        <h2>Your wishlist is empty</h2>
+        <p>Start adding products you love to your wishlist!</p>
+        <a href="{% url 'all_products' %}" class="btn btn-primary">
+            <i class="fa-solid fa-shopping-bag"></i> Browse Products
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function removeFromWishlist(sku) {
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch('/wishlist/remove/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrftoken
+        },
+        body: `sku=${encodeURIComponent(sku)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove the card from the page
+            const card = document.querySelector(`.wishlist-card[data-sku="${sku}"]`);
+            if (card) {
+                card.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    card.remove();
+                    
+                    // Check if wishlist is now empty
+                    const remainingCards = document.querySelectorAll('.wishlist-card');
+                    if (remainingCards.length === 0) {
+                        location.reload();
+                    } else {
+                        // Update count
+                        const countElement = document.querySelector('.wishlist-count');
+                        if (countElement) {
+                            const currentCount = parseInt(countElement.textContent);
+                            const newCount = currentCount - 1;
+                            countElement.textContent = `${newCount} item${newCount !== 1 ? 's' : ''}`;
+                        }
+                    }
+                }, 300);
+            }
+            showNotification('Removed from wishlist', 'success');
+        } else {
+            showNotification(data.error || 'An error occurred', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred', 'error');
+    });
+}
+
+function addToCartFromWishlist(sku) {
+    // Redirect to product detail page with added flag
+    const currency = document.getElementById('currency-selector').value;
+    window.location.href = `/product/${sku}/?added=true&quantity=1&currency=${currency}`;
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `wishlist-notification ${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 300);
+    }, 3000);
+}
+</script>
+
+<style>
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+</style>
+{% endblock %}

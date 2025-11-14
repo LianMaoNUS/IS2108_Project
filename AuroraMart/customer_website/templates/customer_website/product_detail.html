@@ -87,6 +87,10 @@
                                 <i class="fa-solid fa-check-circle"></i>
                                 Item Added to Cart
                             </div>
+                            <button class="btn-wishlist" id="wishlist-btn" onclick="toggleWishlist(event)" title="Add to Wishlist">
+                                <i class="fa-regular fa-heart wishlist-icon-empty"></i>
+                                <i class="fa-solid fa-heart wishlist-icon-filled"></i>
+                            </button>
                         </div>
                         {% else %}
                         <div class="quantity-selector">
@@ -103,6 +107,10 @@
                                 <i class="fa-solid fa-cart-plus"></i>
                                 Add to Cart
                             </a>
+                            <button class="btn-wishlist" id="wishlist-btn" onclick="toggleWishlist(event)" title="Add to Wishlist">
+                                <i class="fa-regular fa-heart wishlist-icon-empty"></i>
+                                <i class="fa-solid fa-heart wishlist-icon-filled"></i>
+                            </button>
                         </div>
                         {% endif %}
                     </div>
