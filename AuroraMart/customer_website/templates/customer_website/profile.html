@@ -210,7 +210,7 @@
 
                                 
                                 <!-- Order Total -->
-                                <div class="order-footer">
+                                <div class="order-footer" id="coupons">
                                     <div class="order-total">
                                         <span class="total-label">Order Total:</span>
                                         <span class="total-amount">{{ currency_symbol }}{{ order.converted_total|floatformat:2 }}</span>
@@ -227,7 +227,7 @@
                     {% endif %}
                 </div>
 
-                <div class="coupons-section" id="coupons">
+                <div class="coupons-section">
                     <div class="coupons-header">
                         <h2>My Coupons</h2>
                         <div class="coupons-count">
