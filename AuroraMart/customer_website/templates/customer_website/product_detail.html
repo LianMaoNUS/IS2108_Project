@@ -144,6 +144,35 @@
         </section>
         {% endif %}
         
+        {% if product.category %}
+        <section class="other-products-section">
+            <div class="section-header">
+                <h2>Other products in this category</h2>
+            </div>
+            <div class="product-grid-horizontal">
+                {% for other in other_products %}
+                    {% if other.sku != product.sku %}
+                    <div class="product-card">
+                        <div class="product-image-placeholder">
+                            <img src="{{ other.product_image }}" alt="{{ other.product_name }}">
+                        </div>
+                        <div class="product-content">
+                            <div class="product-info">
+                                <h3>{{ other.product_name }}</h3>
+                                <p class="product-desc">{{ other.description|truncatewords:10 }}</p>
+                                <p class="product-price"><strong>{{ currency_symbol }}{{ other.unit_price }}</strong></p>
+                            </div>
+                            <a href="{% url 'product_detail' other.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                    <p>No other products found in this category.</p>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        
         <section class="reviews-section">
             <h3>Customer Reviews</h3>
             

@@ -77,6 +77,8 @@
                                 <option value="name-desc" {% if sort_by == 'name-desc' %}selected{% endif %}>Name (Z-A)</option>
                                 <option value="price-asc" {% if sort_by == 'price-asc' %}selected{% endif %}>Price (Low to High)</option>
                                 <option value="price-desc" {% if sort_by == 'price-desc' %}selected{% endif %}>Price (High to Low)</option>
+                                <option value="rating-desc" {% if sort_by == 'rating-desc' %}selected{% endif %}>Rating (High to Low)</option>
+                                <option value="rating-asc" {% if sort_by == 'rating-asc' %}selected{% endif %}>Rating (Low to High)</option>
                             </select>
                         </div>
                     </div>
@@ -127,13 +129,14 @@
                         <p class="product-description">{{ product.description|truncatewords:15 }}</p>
                         <div class="product-meta">
                             <span class="product-sku">SKU: {{ product.sku }}</span>
-                            {% if product.category %}
-                            <span class="product-category">{{ product.category.name }}</span>
-                            {% endif %}
                         </div>
                         <div class="product-price">
                             <span class="currency-symbol">{{ currency_symbol }}</span>
                             <span class="price-amount">{{ product.unit_price }}</span>
+                            <span class="product-rating-inline" title="Rating: {{ product.product_rating }}">
+                                <i class="fa-solid fa-star" style="color: #f5c518; margin-left:8px;"></i>
+                                <span class="rating-text" style="margin-left:4px;">{{ product.product_rating }}/5.0</span>
+                            </span>
                         </div>
                         <div class="product-actions">
                             <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>

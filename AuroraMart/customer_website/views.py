@@ -1,25 +1,30 @@
-from django.shortcuts import render, redirect
-from django.core.mail import send_mail
-from django.urls import reverse
-from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
-from .models import Customer
-from admin_panel.models import Product, Category ,Order, OrderItem, Review, Coupon, CouponUsage
-from django.views import View
-from .forms import CustomerLoginForm, CustomerSignupForm, CustomerForm, CheckoutForm, ForgotPasswordForm, ResetPasswordForm, ReviewForm
-from django.contrib.auth.hashers import check_password
-import pandas as pd
-import joblib
 import os
+import uuid
+import joblib
+from datetime import datetime, timedelta
 from decimal import Decimal
+
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.views import View
 from django.http import JsonResponse
-import uuid
-from datetime import datetime
-import uuid
-from django.db.models import Case, When, Value, IntegerField, Q
-from admin_panel.forms import ReviewForm
-from datetime import timedelta
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.core.paginator import Paginator
+from django.contrib.auth.hashers import check_password
+from django.db.models import Case, When, Value, IntegerField, Sum, Q
+from django.conf import settings
+
+import pandas as pd
+
+from admin_panel.models import Product, Category, Order, OrderItem, Review, Coupon, CouponUsage
+from admin_panel.forms import ReviewForm as AdminReviewForm # Renamed to avoid conflict
+
+from .models import Customer
+from .forms import (
+    CustomerLoginForm, CustomerSignupForm, CustomerForm,
+    CheckoutForm, ForgotPasswordForm, ResetPasswordForm, ReviewForm
+)
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
@@ -66,6 +71,29 @@ def get_cart_count(request):
     return len(cart)
 
 
+class BaseView(View):
+    def get_base_context(self, request):
+        base_context = {
+            'username': request.session.get('customer_username'),
+            'profile_picture': request.session.get('customer_profile_picture'),
+            'cart_count': get_cart_count(request),
+        }
+        try:
+            currency_context = get_currency_context(request)
+            base_context.update(currency_context)
+        except Exception:
+            pass
+        return base_context
+    
+    def render_with_base(self, request, template_name, context=None, status=None):
+        context = context or {}
+        base = self.get_base_context(request)
+        merged = {**base, **context}
+        if status is not None:
+            return render(request, template_name, merged, status=status)
+        return render(request, template_name, merged)
+
+
 def make_coupon_code(prefix, customer=None, coupon_cat=None, length=4):
     base = str(prefix)
     if customer:
@@ -82,12 +110,19 @@ def make_coupon_code(prefix, customer=None, coupon_cat=None, length=4):
         if not Coupon.objects.filter(code=candidate).exists():
             return candidate
 
-    # Fallback: numeric timestamp-based suffix
     return f"{base}{int(datetime.now().timestamp()) % (10 ** length):0{length}d}"
 
 model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
+try:
+    preferred_model = joblib.load(model_path)
+except Exception as e:
+    preferred_model = None
+    print(f"Could not load preferred category model: {e}")
+
+
 def predict_preferred_category(customer_data):
-    loaded_model = joblib.load(model_path)
+    if preferred_model is None:
+        return []
     columns = {
         'age':'int64', 'household_size':'int64', 'has_children':'int64', 'monthly_income_sgd':'float64',
         'gender_Female':'bool', 'gender_Male':'bool', 'employment_status_Full-time':'bool',
@@ -107,7 +142,6 @@ def predict_preferred_category(customer_data):
 
         if col not in customer_encoded.columns:
 
-            # Use False for bool columns, 0 for numeric
             if df[col].dtype == bool:
                 df[col] = False
             else:
@@ -117,12 +151,12 @@ def predict_preferred_category(customer_data):
 
             df[col] = customer_encoded[col]
     
-    # Now input_encoded can be used for prediction
-    prediction = loaded_model.predict(df)    
+    prediction = preferred_model.predict(df)
 
     return prediction
 
-loaded_rules = joblib.load(os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_products_500_transactions_50k.joblib'))
+loaded_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_products_500_transactions_50k.joblib')
+loaded_rules = joblib.load(loaded_path)
 def get_recommendations(items, metric='confidence', top_n=5):
     mask = loaded_rules['antecedents'].apply(lambda x: any(item in x for item in items))
     relevant_rules = loaded_rules[mask]
@@ -140,13 +174,6 @@ def get_recommendations(items, metric='confidence', top_n=5):
 
 
 def get_next_best_action(request, current_category=None):
-    """
-    Determine next best action to nudge user exploration based on:
-    - Browsing history (session-based)
-    - Cart contents
-    - Preferred category
-    - Popular categories
-    """
     actions = []
     
     try:
@@ -164,7 +191,6 @@ def get_next_best_action(request, current_category=None):
             except Product.DoesNotExist:
                 pass
         
-        # Get all main categories
         all_categories = Category.objects.filter(parent_category__isnull=True)
         
         # Action 1: If viewing a category different from preferred, suggest preferred category
@@ -188,7 +214,6 @@ def get_next_best_action(request, current_category=None):
         # Action 2: If cart has items, suggest complementary categories using recommendations
         if cart:
             cart_skus = list(cart.keys())
-            # Get recommended products based on cart items
             recommended_skus = get_recommendations(cart_skus, top_n=5)
             print("Recommended SKUs:", recommended_skus)
             
@@ -243,7 +268,7 @@ def get_next_best_action(request, current_category=None):
         
         unexplored = all_categories.exclude(name__in=explored_categories)
         if unexplored.exists():
-            unexplored_cat = unexplored.order_by('?').first()  # Random unexplored category
+            unexplored_cat = unexplored.order_by('?').first() 
             product_count = Product.objects.filter(category=unexplored_cat).count()
             if product_count > 0:
                 actions.append({
@@ -257,7 +282,6 @@ def get_next_best_action(request, current_category=None):
                 })
         
         # Action 4: Popular/trending category (based on product reorder quantity)
-        from django.db.models import Sum, Count
         popular_categories = Category.objects.filter(
             parent_category__isnull=True
         ).annotate(
@@ -286,13 +310,13 @@ def get_next_best_action(request, current_category=None):
         return []
 
 
-class loginview(View):
+class loginview(BaseView):
     form_class = CustomerLoginForm
     template_name = 'customer_website/login.html'
 
     def get(self, request, *args, **kwargs):
         form = self.form_class()
-        return render(request, self.template_name, {"form": form})
+        return self.render_with_base(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
@@ -311,16 +335,16 @@ class loginview(View):
             except Customer.DoesNotExist:
                 form.add_error(None, "User not found")
     
-        return render(request, self.template_name, {"form": form, "error_message": error_check(form.errors.values())})
+        return self.render_with_base(request, self.template_name, {"form": form, "error_message": error_check(form.errors.values())})
     
 
-class signupview(View):
+class signupview(BaseView):
     form_class = CustomerSignupForm
     template_name = 'customer_website/signup.html'
     
     def get(self, request, *args, **kwargs):
         form = self.form_class()
-        return render(request, self.template_name, {"form": form})
+        return self.render_with_base(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
@@ -337,13 +361,13 @@ class signupview(View):
             else:
                 form.add_error('password_check', "Passwords do not match")
 
-        return render(request, self.template_name, {
+        return self.render_with_base(request, self.template_name, {
                 "form": form, 
                 "error_message": error_check(form.errors.values())
             })
 
 
-class check_username_view(View):
+class check_username_view(BaseView):
     def get(self, request, *args, **kwargs):
         username = request.GET.get('username', '').strip()
         
@@ -358,7 +382,7 @@ class check_username_view(View):
             return JsonResponse({'available': True, 'message': 'Username is available'})
 
 
-class new_userview(View):
+class new_userview(BaseView):
     template_name = 'customer_website/new_user.html'
 
     customer_details_form_class = CustomerForm
@@ -400,7 +424,7 @@ class new_userview(View):
             "form": form,
             "is_profile_update": request.session.get('updating_profile', False)
         }
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
         is_updating_profile = request.session.get('updating_profile', False)
@@ -410,7 +434,7 @@ class new_userview(View):
             username = request.session.get('new_user_username')
             password = request.session.get('new_user_password')
         if not username:
-            return render(request, 'customer_website/signup.html', {
+            return self.render_with_base(request, 'customer_website/signup.html', {
                 "form": CustomerSignupForm(),
                 "error_message": ["Session expired. Please sign up / log in again."]
             })
@@ -565,12 +589,12 @@ class new_userview(View):
             
             return redirect('customer_home')
         else:
-            return render(request, self.template_name, {
+            return self.render_with_base(request, self.template_name, {
                 "form": form, 
                 "error_message": error_check(form.errors.values())
             })       
         
-class mainpageview(View):
+class mainpageview(BaseView):
     template_name = 'customer_website/main_page.html'
 
     def get(self, request, *args, **kwargs):
@@ -599,21 +623,17 @@ class mainpageview(View):
         convert_product_prices(top_products, currency_context['currency_info'])
 
         context = {
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
             'main_category': main_category,
             'more_categories': more_categories,
             'products': products,
             'top_products': top_products,
-            'cart_count': get_cart_count(request),
             'preferred_category': user.preferred_category,
             'recommendation_reason': recommendation_reason,
         }
         context.update(currency_context)
-
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
     
-class product_detailview(View):
+class product_detailview(BaseView):
     template_name = 'customer_website/product_detail.html'
 
     def get(self, request, sku, *args, **kwargs):
@@ -671,34 +691,35 @@ class product_detailview(View):
             is_in_cart = sku in cart
             
             cart_added = request.GET.get('cart_added') == 'true' or is_in_cart
-            
+            other_products = Product.objects.none()
+            try:
+                if product.category:
+                    other_products = product.category.products.exclude(sku=sku).order_by('?')[:4]
+            except Exception:
+                other_products = Product.objects.none()
+
             context = {
                 'product': product,
                 'recommended_products': recommended_products,
-                'username': request.session.get('customer_username'),
-                'profile_picture': request.session.get('customer_profile_picture'),
-                'cart_count': get_cart_count(request),
+                'other_products': other_products,
                 'cart_added': cart_added,
                 'recommended_title': recommended_title if 'recommended_title' in locals() else False,
             }
             context.update(currency_context)
             
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
         except Product.DoesNotExist:
             currency_context = get_currency_context(request)
             context = {
                 'product': None,  
                 'recommended_products': [],
-                'username': request.session.get('customer_username'),
-                'profile_picture': request.session.get('customer_profile_picture'),
-                'cart_count': get_cart_count(request),
             }
             context.update(currency_context)
             
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
     
 
-class cartview(View):   
+class cartview(BaseView):   
     template_name = 'customer_website/cart.html'
 
     def get(self, request, *args, **kwargs):
@@ -795,17 +816,14 @@ class cartview(View):
             'subtotal': subtotal,
             'shipping': shipping,
             'total': total,
-            'cart_count': get_cart_count(request),
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
             'recommended_products': recommended_products,
             'is_recommended': is_recommended,
         }
         context.update(currency_context)
         
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
 
-class all_productsview(View):
+class all_productsview(BaseView):
     template_name = 'customer_website/products.html'
 
     def get(self, request, *args, **kwargs):
@@ -841,6 +859,10 @@ class all_productsview(View):
             products_list = products_list.order_by('unit_price')
         elif sort_by == 'price-desc':
             products_list = products_list.order_by('-unit_price')
+        elif sort_by == 'rating-desc':
+            products_list = products_list.order_by('-product_rating')
+        elif sort_by == 'rating-asc':
+            products_list = products_list.order_by('product_rating')
         
         main_categories = Category.objects.filter(parent_category__isnull=True).order_by('name')
         all_categories = Category.objects.all().order_by('name')
@@ -876,9 +898,6 @@ class all_productsview(View):
             'paginator': paginator,
             'page_obj': products,
             'is_paginated': paginator.num_pages > 1,
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
-            'cart_count': get_cart_count(request),
             'search_query': search_query,
             'sort_by': sort_by,
             'selected_category': category_id,
@@ -890,9 +909,9 @@ class all_productsview(View):
         }
         context.update(currency_context)
 
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
 
-class search_ajax_view(View):
+class search_ajax_view(BaseView):
     def get(self, request, *args, **kwargs):
         search_query = request.GET.get('q', '').strip()
         products_list = Product.objects.none()
@@ -922,21 +941,18 @@ class search_ajax_view(View):
             'total_count': len(results)
         })
     
-class checkout_page(View):
+class checkout_page(BaseView):
     template_name = 'customer_website/checkout.html'
 
     def get(self, request, *args, **kwargs):
         cart = request.session.get('cart', {})
         if not cart:
-            return render(request, self.template_name, {
+            return self.render_with_base(request, self.template_name, {
                 'cart_items': [],
                 'subtotal': Decimal('0.00'),
                 'shipping_cost': Decimal('0.00'),
                 'tax_amount': Decimal('0.00'),
                 'total_amount': Decimal('0.00'),
-                'cart_count': get_cart_count(request),
-                'username': request.session.get('customer_username'),
-                'profile_picture': request.session.get('customer_profile_picture'),
                 'checkout_form': None,
             })
 
@@ -1001,7 +1017,7 @@ class checkout_page(View):
                                 if not has_eligible:
                                     continue
                         except Exception:
-                            # If category check fails, conservatively skip coupon
+
                             continue
 
                         filtered.append(c)
@@ -1080,9 +1096,6 @@ class checkout_page(View):
             'tax_amount': totals['tax'],
             'total_amount': final_total,
             'discount_amount': discount_amount,
-            'cart_count': get_cart_count(request),
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
             'checkout_form': checkout_form,
             'available_coupons': available_coupons,
             'selected_coupon_code': selected_coupon_code,
@@ -1090,7 +1103,7 @@ class checkout_page(View):
         }
         context.update(currency_context)
         
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
         cart = request.session.get('cart', {})
@@ -1116,15 +1129,12 @@ class checkout_page(View):
                     'tax_amount': totals['tax'],
                     'total_amount': totals['total'],
                     'discount_amount': Decimal('0.00'), 
-                    'cart_count': get_cart_count(request),
-                    'username': request.session.get('customer_username'),
-                    'profile_picture': request.session.get('customer_profile_picture'),
                     'checkout_form': checkout_form,
                     'form_error': order_result['error'],
                 }
                 context.update(currency_context)
                 
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
 
         context = {
             'cart_items': cart_items,
@@ -1133,14 +1143,11 @@ class checkout_page(View):
             'tax_amount': totals['tax'],
             'total_amount': totals['total'],
             'discount_amount': Decimal('0.00'), 
-            'cart_count': get_cart_count(request),
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
             'checkout_form': checkout_form,
         }
         context.update(currency_context)
         
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
 
     def _calculate_cart_totals(self, request, cart):
         """Calculate cart items and totals"""
@@ -1187,14 +1194,31 @@ class checkout_page(View):
             subtotal_in_sgd = (totals['subtotal'] / currency_rate).quantize(Decimal('0.01'))
             total_in_sgd = (totals['total'] / currency_rate).quantize(Decimal('0.01'))
 
-            # Handle coupon if provided
             coupon = None
             discount_amount = Decimal('0.00')
             coupon_code = form_data.get('coupon_code', '').strip()
             if not coupon_code:
                 coupon_code = request.session.pop('selected_coupon_code', '').strip()
             
-            if coupon_code:
+            has_available_coupons = False
+            try:
+                today = timezone.localdate()
+                available_qs = (
+                    Coupon.objects.filter(
+                        is_active=True,
+                        valid_from__lte=today,
+                        valid_until__gte=today
+                    )
+                    .exclude(usages__customer=customer)
+                    .filter(Q(assigned_customers__isnull=True) | Q(assigned_customers=customer))
+                    .distinct()
+                )
+                has_available_coupons = available_qs.exists()
+            except Exception:
+                has_available_coupons = False
+
+            # Only validate/apply coupon if user actually has coupons available.
+            if coupon_code and has_available_coupons:
                 
                 try:
                     coupon = Coupon.objects.get(code=coupon_code.upper())
@@ -1278,6 +1302,16 @@ class checkout_page(View):
                         quantity=item['quantity'],
                         price_at_purchase=price_in_sgd
                     )
+                    try:
+                        qty = int(item.get('quantity', 1) or 0)
+                    except Exception:
+                        qty = item.get('quantity', 0)
+                    if hasattr(product, 'quantity_on_hand') and product.quantity_on_hand is not None:
+                        try:
+                            product.quantity_on_hand = max(0, int(product.quantity_on_hand) - int(qty))
+                            product.save(update_fields=['quantity_on_hand'])
+                        except Exception:
+                            pass
                 except Product.DoesNotExist:
                     return {
                         'success': False,
@@ -1391,7 +1425,7 @@ class checkout_page(View):
                 'error': f'An error occurred while processing your order: {str(e)}'
             }
 
-class order_confirmation_page(View):
+class order_confirmation_page(BaseView):
     template_name = 'customer_website/order_confirmation.html'
 
     def get(self, request, order_id, *args, **kwargs):
@@ -1400,7 +1434,7 @@ class order_confirmation_page(View):
             
             username = request.session.get('customer_username')
             if not username or order.customer.username != username:
-                return render(request, 'customer_website/main_page.html')
+                return self.render_with_base(request, 'customer_website/main_page.html')
 
             order_items = OrderItem.objects.filter(order_id=order)
             currency_context = get_currency_context(request)
@@ -1417,18 +1451,16 @@ class order_confirmation_page(View):
                 'order': order,
                 'order_items': order_items,
                 'order_total': order_total,
-                'cart_count': get_cart_count(request),
-                'username': username,
-                'profile_picture': request.session.get('customer_profile_picture'),
+                
             }
             context.update(currency_context)
             
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
             
         except Order.DoesNotExist:
-            return render(request, 'customer_website/main_page.html')
+            return self.render_with_base(request, 'customer_website/main_page.html')
 
-class profile_page(View):
+class profile_page(BaseView):
     template_name = 'customer_website/profile.html'
 
     def get_context_data(self, request, sort_by='date-desc', **kwargs):
@@ -1485,11 +1517,7 @@ class profile_page(View):
         
         review_form = ReviewForm()
         
-        # Use localdate() so date comparisons respect project timezone
         today = timezone.localdate()
-        # Build a set of all relevant coupons (general + assigned) that the
-        # customer hasn't already used, then split into currently valid and
-        # expired for separate display sections.
         all_relevant = (
             Coupon.objects.filter(assigned_customers__isnull=True) |
             Coupon.objects.filter(assigned_customers=customer)
@@ -1518,9 +1546,6 @@ class profile_page(View):
         used_coupons = CouponUsage.objects.filter(customer=customer).order_by('used_at')
         context = {
             'customer': customer,
-            'username': username,
-            'profile_picture': request.session.get('customer_profile_picture'),
-            'cart_count': get_cart_count(request),
             'customer_orders': customer_orders,
             'current_sort': sort_by,
             'review_form': review_form,
@@ -1546,12 +1571,12 @@ class profile_page(View):
             return redirect('login')
         
         context = self.get_context_data(request, sort_by)
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
     
     def post(self, request, *args, **kwargs):
         username = request.session.get('customer_username')
         if not username:
-            return render(request, 'customer_website/login.html', {
+            return self.render_with_base(request, 'customer_website/login.html', {
                 "form": CustomerLoginForm(),
                 "error_message": ["Please log in to submit a review."]
             })
@@ -1562,7 +1587,7 @@ class profile_page(View):
             product_sku = request.POST.get('product_sku')
             if not product_sku:
                 context = self.get_context_data(request, message=["Invalid product for review submission."])
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
             
             product = Product.objects.get(sku=product_sku)
             
@@ -1574,7 +1599,7 @@ class profile_page(View):
             
             if not has_purchased:
                 context = self.get_context_data(request, message=["You can only review products you have purchased."])
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
             
             form = ReviewForm(request.POST)
             
@@ -1597,44 +1622,36 @@ class profile_page(View):
                     review.save()
                 
                 context = self.get_context_data(request, message="Your review has been submitted successfully.")
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
             else:
                 context = self.get_context_data(request, error_message=error_check(form.errors.values()))
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
                 
         except Customer.DoesNotExist:
-            return render(request, 'customer_website/login.html', {
+            return self.render_with_base(request, 'customer_website/login.html', {
                 "form": CustomerLoginForm(),
                 "error_message": ["Please log in to submit a review."]
             })
         except Product.DoesNotExist:
             context = self.get_context_data(request, error_message=["Invalid product for review submission."])
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
         except Exception as e:
             context = self.get_context_data(request, error_message=["An unexpected error occurred. Please try again later."])
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
 
 
-class about_us_view(View):
+class about_us_view(BaseView):
     template_name = 'customer_website/about.html'
 
     def get(self, request, *args, **kwargs):
-        currency_context = get_currency_context(request)
-        context = {
-            'username': request.session.get('customer_username'),
-            'profile_picture': request.session.get('customer_profile_picture'),
-            'cart_count': get_cart_count(request),
-        }
-        context.update(currency_context)
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, {})
 
-
-class ForgotPasswordView(View):
+class ForgotPasswordView(BaseView):
     template_name = 'customer_website/forgot_password.html'
-    
+
     def get(self, request):
         form = ForgotPasswordForm()
-        return render(request, self.template_name, {'form': form})
+        return self.render_with_base(request, self.template_name, {'form': form})
     
     def post(self, request):
         form = ForgotPasswordForm(request.POST)
@@ -1646,13 +1663,13 @@ class ForgotPasswordView(View):
             temp_form = ForgotPasswordForm({'username': username})
             if temp_form.is_valid():
                 form = ForgotPasswordForm({'username': username})
-                return render(request, self.template_name, {
+                return self.render_with_base(request, self.template_name, {
                     'form': form, 
                     'show_email': True,
                     'username': username
                 })
             else:
-                return render(request, self.template_name, {
+                return self.render_with_base(request, self.template_name, {
                     'form': temp_form, 
                     'error_message': error_check(temp_form.errors.values())
                 })
@@ -1661,7 +1678,6 @@ class ForgotPasswordView(View):
             username = form.cleaned_data['username']
             print("USERNAME:", username)
             email = form.cleaned_data['email']
-            customer = Customer.objects.get(username=username)
             
             reset_url = request.build_absolute_uri(
                 reverse('reset_password', kwargs={'username': username})
@@ -1685,30 +1701,31 @@ AuroraMart Team'''
                 request.session.set_expiry(3600) 
                 
                 send_mail(
-                    subject,
-                    message,
-                    'noreply@auroramart.com',
-                    [email],
-                    fail_silently=False,
+                    subject=subject,
+                    message=message,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'auroramart456@gmail.com'),
+                    recipient_list=[email],
+                    fail_silently=True, 
                 )
-                return render(request, self.template_name, {
+                
+                return self.render_with_base(request, self.template_name, {
                     'form': form,
                     'success_message': f'Password reset link has been sent to {email}'
                 })
             
             except Exception as e:
-                return render(request, self.template_name, {
+                return self.render_with_base(request, self.template_name, {
                     'form': form, 
                     'error_message': [f'Error sending email: {str(e)}']
                 })        
         
-        return render(request, self.template_name, {
+        return self.render_with_base(request, self.template_name, {
             'form': form, 
             'error_message': error_check(form.errors.values())
         })
 
 
-class ResetPasswordView(View):
+class ResetPasswordView(BaseView):
     template_name = 'customer_website/reset_password.html'
     
     def get(self, request, username):
@@ -1718,7 +1735,7 @@ class ResetPasswordView(View):
         try:
             customer = Customer.objects.get(username=username)
             form = ResetPasswordForm()
-            return render(request, self.template_name, {'form': form, 'username': username})
+            return self.render_with_base(request, self.template_name, {'form': form, 'username': username})
         except Customer.DoesNotExist:
             return redirect('login')
     
@@ -1737,14 +1754,14 @@ class ResetPasswordView(View):
                 
                 request.session.pop(f'password_reset_{username}', None)
                 
-                return render(request, self.template_name, {
+                return self.render_with_base(request, self.template_name, {
                     'form': form,
                     'username': username,
                     'success': True,
                     'success_message': 'Password has been reset successfully! Redirecting to login...'
                 })
             
-            return render(request, self.template_name, {
+            return self.render_with_base(request, self.template_name, {
                 'form': form, 
                 'username': username,
                 'error_message': error_check(form.errors.values())

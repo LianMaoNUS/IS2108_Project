@@ -14,13 +14,34 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .forms import AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm, CustomerForm, OrderForm, CategoryForm, OrderItemForm, CouponForm, CouponUsageForm
+from .forms import (
+    AdminLoginForm, AdminSignupForm, AdminUpdateForm, ProductForm,
+    CustomerForm, OrderForm, CategoryForm, OrderItemForm, CouponForm,
+    CouponUsageForm)
+
 from AuroraMart.models import User 
 from customer_website.models import Customer
 from admin_panel.models import Admin, Order, Category, Product, OrderItem, Coupon, CouponUsage
 
 def error_check(check):
     return [msg for err_list in check for msg in err_list]
+
+
+class AdminBaseView(View):
+    def get_admin_context(self, request):
+        return {
+            'username': request.session.get('admin_username'),
+            'user_role': request.session.get('admin_role'),
+            'profile_picture': request.session.get('admin_profile_picture'),
+        }
+
+    def render_with_base(self, request, template_name, context=None, status=None):
+        context = context.copy() if context else {}
+        base = self.get_admin_context(request)
+        merged = {**base, **context}
+        if status is not None:
+            return render(request, template_name, merged, status=status)
+        return render(request, template_name, merged)
 
 
 def record_selector(request, model, type):
@@ -41,13 +62,13 @@ def record_selector(request, model, type):
 
 
 
-class loginview(View):
+class loginview(AdminBaseView):
     form_class = AdminLoginForm
     template_name = 'admin_panel/login.html'
     
     def get(self, request, *args, **kwargs):
         form = self.form_class()
-        return render(request, self.template_name, {"form": form})
+        return self.render_with_base(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
@@ -69,15 +90,15 @@ class loginview(View):
             except ValueError as e:
                 error_message = f"Invalid data format: {str(e)}"
 
-        return render(request, self.template_name, {"form": form,"error_message": error_message})
+        return self.render_with_base(request, self.template_name, {"form": form,"error_message": error_message})
 
-class signupview(View):
+class signupview(AdminBaseView):
     form_class = AdminSignupForm
     template_name = 'admin_panel/signup.html'
     
     def get(self, request, *args, **kwargs):
         form = self.form_class()
-        return render(request, self.template_name, {"form": form})
+        return self.render_with_base(request, self.template_name, {"form": form})
     
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
@@ -86,7 +107,7 @@ class signupview(View):
             form.save() 
             request.session['admin_username'] = form.cleaned_data['username']
             request.session['admin_role'] = form.cleaned_data['role']
-            return render(request, 'admin_panel/login.html', {
+            return self.render_with_base(request, 'admin_panel/login.html', {
                 "form": AdminLoginForm(),
                 "success_message": "Signup successful! Please log in."
             })
@@ -96,7 +117,7 @@ class signupview(View):
                 "error_message": error_check(form.errors.values())
             })
 
-class AdminDashboardView(View):
+class AdminDashboardView(AdminBaseView):
     template_name = 'admin_panel/main_dashboard.html'
 
     def _get_dashboard_stats(self):
@@ -157,17 +178,11 @@ class AdminDashboardView(View):
         return context
 
     def get(self, request, *args, **kwargs):
-        context = {
-            'username': request.session.get("admin_username"),
-            'user_role': request.session.get("admin_role"),
-            'profile_picture': request.session.get("admin_profile_picture"),
-        }
         stats = self._get_dashboard_stats()
-        context.update(stats)
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, stats)
 
 
-class AdminTableView(View):
+class AdminTableView(AdminBaseView):
     template_name = 'admin_panel/table_view.html'
     view_configs = {
         'dashboard': {
@@ -228,7 +243,6 @@ class AdminTableView(View):
         }
     }
 
-    # Use the module-level `record_selector` function (defined above)
 
     def dispatch(self, request, *args, **kwargs):
         self.view_type = request.GET.get('type', 'products') 
@@ -382,7 +396,7 @@ class AdminTableView(View):
                 return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
             except Exception as e:
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
         else:
             form_to_display = form()
             if request.GET.get('category'):
@@ -396,13 +410,11 @@ class AdminTableView(View):
                 except Category.DoesNotExist:
                     pass
 
-        # If we're dealing with coupon usage form, allow pre-filtering of customer and order selects
         try:
             if self.view_type == 'couponusage' and form_to_display is not None:
                 coupon_param = request.GET.get('coupon')
                 customer_param = request.GET.get('customer') or request.GET.get('customer_id')
 
-                # If coupon specified, restrict customers to assigned customers or all if none assigned
                 if coupon_param and 'coupon' in form_to_display.fields:
                     try:
                         coupon_obj = Coupon.objects.get(pk=coupon_param)
@@ -414,20 +426,16 @@ class AdminTableView(View):
                             else:
                                 form_to_display.fields['customer'].queryset = Customer.objects.all()
                     except Coupon.DoesNotExist:
-                        # leave default querysets
                         pass
 
-                # If customer specified (or selected after coupon change), restrict orders to that customer
                 if customer_param and 'order' in form_to_display.fields:
                     try:
                         cust = Customer.objects.get(pk=customer_param)
                         form_to_display.fields['order'].queryset = Order.objects.filter(customer=cust)
                         form_to_display.fields['order'].initial = None
                     except Customer.DoesNotExist:
-                        # leave default orders queryset
                         pass
         except Exception:
-            # Non-fatal; continue rendering the form with defaults
             pass
 
         context = self._get_context_data(form=form_to_display)
@@ -435,7 +443,7 @@ class AdminTableView(View):
         if success:
             context['success_message'] = [f"{success.capitalize()} completed successfully."]
         context['show_modal'] = 'True' if action in ['Update', 'Add'] else 'False'
-        return render(request, self.template_name, context)
+        return self.render_with_base(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
         action = self.request.GET.get('action') or self.request.POST.get('action')
@@ -443,21 +451,19 @@ class AdminTableView(View):
         form_instance = None
         form_class = None
 
-        #SELECTING INDV DOES NOT WORK, DELETING FROM ICON WORKS
-
         if action == 'Delete':
             try:
                 result = record_selector(request, model, 'delete')
                 if result is None:
                     # No IDs provided or no records found
                     context = self._get_context_data(error_message=["No records selected for deletion."])
-                    return render(request, self.template_name, context)
+                    return self.render_with_base(request, self.template_name, context)
                 
                 # Check if deletion actually occurred
                 deleted_count = sum(result[0].values()) if isinstance(result, tuple) and len(result) > 0 else 0
                 if deleted_count == 0:
                     context = self._get_context_data(error_message=["No records were deleted. They may not exist or may be protected."])
-                    return render(request, self.template_name, context)
+                    return self.render_with_base(request, self.template_name, context)
                 
                 target_type = request.GET.get('type') or self.view_type or 'products'
                 return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
@@ -468,7 +474,7 @@ class AdminTableView(View):
                 print(f"Error deleting records: {str(e)}\n{error_details}")
                 
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
 
         if action == 'Update':
             form_class = self.config['form']
@@ -478,7 +484,7 @@ class AdminTableView(View):
                 old_status = form_instance.status if model == Order else None
             except model.DoesNotExist:
                 context = self._get_context_data(error_message=["Item to update not found."])
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
         else:
             form_class = self.config['form']
 
@@ -486,23 +492,23 @@ class AdminTableView(View):
 
         if form.is_valid():
             saved_instance = form.save()
-            if model == Order and action == 'Update' and old_status != 'COMPLETED' and saved_instance.status == 'COMPLETED':
-                self._send_order_completed_email(saved_instance)
+            if model == Order and action == 'Update':
+                new_status = getattr(saved_instance, 'status', None)
+                if new_status and old_status != new_status and new_status in ('COMPLETED', 'CANCELLED'):
+                    self._send_order__email(saved_instance)
             return redirect(f"{reverse('admin_list')}?type={self.view_type}&success={action.lower()}")
         else:
             context = self._get_context_data(form=form, error_message=error_check(form.errors.values()))
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
 
-    def _send_order_completed_email(self, order):
+    def _send_order__email(self, order):
         try:
             customer = order.customer
             order_items = order.items.all()
-
             items_text = ""
             for item in order_items:
                 items_text += f"- {item.product.product_name} x {item.quantity} @ ${item.price_at_purchase}\n"
-            
-            subject = f"Order #{order.order_id} Completed - AuroraMart"
+            subject = f"Order #{order.order_id} Completed - AuroraMart" if order.status == 'COMPLETED' else f"Order #{order.order_id} Cancelled - AuroraMart"
             
             message = f"""
 Hello {customer.username},
@@ -530,6 +536,25 @@ The AuroraMart Team
 
 ---
 This is an automated email. Please do not reply to this message.
+            """ if order.status == 'COMPLETED' else f"""
+Hello {customer.username},
+
+We regret to inform you that your order has been cancelled.
+
+Order Details:
+--------------
+Order ID: {order.order_id}
+Order Date: {order.order_date.strftime('%B %d, %Y at %I:%M %p')}
+Total Amount: ${order.total_amount}
+Items Ordered:
+{items_text}
+
+If you have any questions regarding this cancellation, please contact our support team.
+Best regards,
+The AuroraMart Team
+---
+
+This is an automated email. Please do not reply to this message.
             """
             
             send_mail(
@@ -543,7 +568,7 @@ This is an automated email. Please do not reply to this message.
         except Exception as e:
             print(f"Failed to send order completion email: {str(e)}")
 
-class profileSettingsView(View):
+class profileSettingsView(AdminBaseView):
     template_name = 'admin_panel/profile_settings.html'
     form_class = AdminUpdateForm
 
@@ -561,9 +586,9 @@ class profileSettingsView(View):
             form = self.form_class(instance=admin)
             context = self.get_common_context(request)
             context['form'] = form
-            return render(request, self.template_name, context)
+            return self.render_with_base(request, self.template_name, context)
         except Admin.DoesNotExist:
-            return render(request, 'admin_panel/login.html')
+            return self.render_with_base(request, 'admin_panel/login.html')
 
     def post(self, request, *args, **kwargs):
         username = request.session.get("admin_username")
@@ -580,12 +605,12 @@ class profileSettingsView(View):
                 context['success_message'] = ["Profile updated successfully."]
                 context['username'] = request.session.get("admin_username")
                 context['user_role'] = request.session.get("admin_role")
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
             else:
                 context['error_message'] = error_check(form.errors.values())
-                return render(request, self.template_name, context)
+                return self.render_with_base(request, self.template_name, context)
         except Admin.DoesNotExist:
-            return render(request, 'admin_panel/login.html')
+            return self.render_with_base(request, 'admin_panel/login.html')
 
             
 def logoutview(request):
