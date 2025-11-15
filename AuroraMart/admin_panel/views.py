@@ -182,6 +182,71 @@ class AdminDashboardView(AdminBaseView):
         return self.render_with_base(request, self.template_name, stats)
 
 
+class DashboardFilterView(View):
+    """AJAX endpoint for filtering dashboard data by time period"""
+    
+    def get(self, request, *args, **kwargs):
+        months = int(request.GET.get('months', 1))
+        
+        now = timezone.now()
+        if months == 1:
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            period_label = "This Month"
+            chart_days = 30
+        elif months == 6:
+            start_date = now - datetime.timedelta(days=180)
+            period_label = "Last 6 Months"
+            chart_days = 180
+        else:  # 12 months
+            start_date = now - datetime.timedelta(days=365)
+            period_label = "Last Year"
+            chart_days = 365
+        
+        # Calculate revenue
+        orders = Order.objects.filter(
+            order_date__gte=start_date, status='COMPLETED'
+        ).annotate(
+            total_value=Sum(F('items__price_at_purchase') * F('items__quantity'))
+        )
+        total_revenue = orders.aggregate(total=Sum('total_value'))['total'] or 0
+        
+        # Calculate new customers
+        try:
+            new_customers = Customer.objects.filter(date_joined__gte=start_date).count()
+        except AttributeError:
+            new_customers = "N/A"
+        
+        # Calculate sales trend
+        chart_start = now - datetime.timedelta(days=chart_days)
+        sales_trend = Order.objects.filter(
+            order_date__gte=chart_start, status='COMPLETED'
+        ).annotate(
+            date=F('order_date__date')
+        ).values('date').annotate(
+            daily_total=Sum(F('items__price_at_purchase') * F('items__quantity'), default=0)
+        ).order_by('date')
+        
+        # Format chart data based on period
+        if months == 1:
+            chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
+        elif months == 6:
+            # Group by week
+            chart_labels = [entry['date'].strftime('%b %d') for entry in sales_trend]
+        else:
+            # Group by month
+            chart_labels = [entry['date'].strftime('%b %Y') for entry in sales_trend]
+        
+        chart_data = [float(entry['daily_total']) for entry in sales_trend]
+        
+        return JsonResponse({
+            'total_revenue': float(total_revenue),
+            'new_customers': new_customers,
+            'chart_labels': chart_labels,
+            'chart_data': chart_data,
+            'period_label': period_label
+        })
+
+
 class AdminTableView(AdminBaseView):
     template_name = 'admin_panel/table_view.html'
     view_configs = {
