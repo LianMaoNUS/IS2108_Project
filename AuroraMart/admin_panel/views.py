@@ -256,7 +256,6 @@ class AdminTableView(AdminBaseView):
         model = self.config['model']
         action = self.request.GET.get('action')
         if action != 'Update':
-            print(f"Getting queryset for view type: {self.request} with action: {action}")
             queryset = record_selector(self.request, model, 'filter')
            
         else:
@@ -455,11 +454,9 @@ class AdminTableView(AdminBaseView):
             try:
                 result = record_selector(request, model, 'delete')
                 if result is None:
-                    # No IDs provided or no records found
                     context = self._get_context_data(error_message=["No records selected for deletion."])
                     return self.render_with_base(request, self.template_name, context)
                 
-                # Check if deletion actually occurred
                 deleted_count = sum(result[0].values()) if isinstance(result, tuple) and len(result) > 0 else 0
                 if deleted_count == 0:
                     context = self._get_context_data(error_message=["No records were deleted. They may not exist or may be protected."])
@@ -467,12 +464,7 @@ class AdminTableView(AdminBaseView):
                 
                 target_type = request.GET.get('type') or self.view_type or 'products'
                 return redirect(f"{reverse('admin_list')}?type={target_type}&success=delete")
-            except Exception as e:
-                # Log the full exception for debugging
-                import traceback
-                error_details = traceback.format_exc()
-                print(f"Error deleting records: {str(e)}\n{error_details}")
-                
+            except Exception as e:          
                 context = self._get_context_data(error_message=[f"Error deleting record: {str(e)}"])
                 return self.render_with_base(request, self.template_name, context)
 
@@ -566,7 +558,7 @@ This is an automated email. Please do not reply to this message.
             )
             
         except Exception as e:
-            print(f"Failed to send order completion email: {str(e)}")
+            pass
 
 class profileSettingsView(AdminBaseView):
     template_name = 'admin_panel/profile_settings.html'

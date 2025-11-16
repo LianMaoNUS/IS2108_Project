@@ -1,4 +1,3 @@
-// Track which items have been modified
 let modifiedItems = new Set();
 
 function increaseQuantity(sku) {
@@ -32,7 +31,6 @@ function markChanged(sku) {
         input.classList.remove('modified');
     }
 
-    // Show/hide save button based on whether there are changes
     const saveBtn = document.getElementById('save-changes-btn');
     if (modifiedItems.size > 0) {
         saveBtn.style.display = 'inline-block';
@@ -47,13 +45,11 @@ function saveChanges() {
     const url = new URL('/cart/', window.location.origin);
     url.searchParams.set('bulk_update', 'true');
 
-    // Add all modified quantities as URL parameters
     modifiedItems.forEach(sku => {
         const input = document.getElementById('qty-' + sku);
         url.searchParams.set('qty_' + sku, input.value);
     });
 
-    // Navigate to the URL with all changes
     window.location.href = url.toString();
 }
 
@@ -69,15 +65,3 @@ function removeItem(sku, productName) {
     }
 }
 
-// Currency selector functionality
-document.addEventListener('DOMContentLoaded', function () {
-    const currencySelector = document.getElementById('currency-selector');
-    if (currencySelector) {
-        currencySelector.addEventListener('change', function () {
-            const selectedCurrency = this.value;
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('currency', selectedCurrency);
-            window.location.href = currentUrl.toString();
-        });
-    }
-});

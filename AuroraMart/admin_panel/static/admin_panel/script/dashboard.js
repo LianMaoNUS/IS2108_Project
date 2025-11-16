@@ -84,7 +84,6 @@
             exportCsvBtn.addEventListener('click', exportToCsv);
         }
 
-        // Initialize search functionality
         initializeSearch();
 
         const chart = document.getElementById('salesTrendChart')?.getContext('2d');

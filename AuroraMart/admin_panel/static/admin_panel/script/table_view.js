@@ -1,7 +1,6 @@
-// Show modal if action is in URL
+
 document.addEventListener('DOMContentLoaded', function () {
     const modalShow = document.querySelector('.modal-show')?.textContent.trim();
-    console.log(modalShow == 'True');
     if (modalShow == 'True') {
         showModal();
     }

@@ -501,13 +501,12 @@ a.btn:visited, a.btn:hover {
     background-color: #10B981;
 }
 
-/* Product Meta */
 .product-meta {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 1.2rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.85rem;
+    color: #cccccc;
+    margin-bottom: 0.5rem;
 }
+
 
 .meta-item {
     margin-bottom: 0.6rem;
@@ -628,10 +627,30 @@ a.btn:visited, a.btn:hover {
 }
 
 .product-card .product-price {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: #ffffff;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center; 
+    gap: 8px;
+}
+
+.currency-symbol {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.product-meta {
+    font-size: 0.85rem;
+    color: #cccccc;
+    margin-bottom: 0.5rem;
+}
+
+.product-actions {
+    display: flex;
+    justify-content: center;
 }
 
 .product-card .btn-secondary {

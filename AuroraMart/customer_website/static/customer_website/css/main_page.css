@@ -412,10 +412,34 @@ a.btn:focus {
 }
 
 .product-price {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: #ffffff;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center; 
+    gap: 8px;
+}
+.product-sku {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    margin: 0 0 0.5rem 0;
+}
+.currency-symbol {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.product-meta {
+    font-size: 0.85rem;
+    color: #cccccc;
+    margin-bottom: 0.5rem;
+}
+
+.product-actions {
+    display: flex;
+    justify-content: center;
 }
 
 .product-card .btn-secondary {

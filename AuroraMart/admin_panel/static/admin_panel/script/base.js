@@ -23,7 +23,6 @@ function toggleGroup(groupId) {
     }
 }
 
-// Initialize groups as collapsed
 document.addEventListener('DOMContentLoaded', function () {
     const groups = ['order-group', 'coupon-group'];
     groups.forEach(groupId => {

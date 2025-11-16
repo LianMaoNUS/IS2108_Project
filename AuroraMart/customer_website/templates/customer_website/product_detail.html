@@ -83,11 +83,13 @@
                         </div>
                         
                         <div class="action-buttons">
+                            {% if cart_added %}
                             <div class="btn btn-success added-message">
                                 <i class="fa-solid fa-check-circle"></i>
                                 Item Added to Cart
                             </div>
-                            <button class="btn-wishlist" id="wishlist-btn" onclick="toggleWishlist(event)" title="Add to Wishlist">
+                            {% endif %}
+                            <button class="btn-wishlist{% if in_wishlist %} in-wishlist{% endif %}" id="wishlist-btn" onclick="toggleWishlist(event)" title="{% if in_wishlist %}Remove from Wishlist{% else %}Add to Wishlist{% endif %}">
                                 <i class="fa-regular fa-heart wishlist-icon-empty"></i>
                                 <i class="fa-solid fa-heart wishlist-icon-filled"></i>
                             </button>
@@ -107,7 +109,7 @@
                                 <i class="fa-solid fa-cart-plus"></i>
                                 Add to Cart
                             </a>
-                            <button class="btn-wishlist" id="wishlist-btn" onclick="toggleWishlist(event)" title="Add to Wishlist">
+                            <button class="btn-wishlist{% if in_wishlist %} in-wishlist{% endif %}" id="wishlist-btn" onclick="toggleWishlist(event)" title="{% if in_wishlist %}Remove from Wishlist{% else %}Add to Wishlist{% endif %}">
                                 <i class="fa-regular fa-heart wishlist-icon-empty"></i>
                                 <i class="fa-solid fa-heart wishlist-icon-filled"></i>
                             </button>
@@ -142,9 +144,21 @@
                         <div class="product-info">
                             <h3>{{ rec_product.product_name }}</h3>
                             <p class="product-desc">{{ rec_product.description|truncatewords:10 }}</p>
-                            <p class="product-price"><strong>{{ currency_symbol }}{{ rec_product.unit_price }}</strong></p>
+                            <div class="product-meta">
+                                <span class="product-sku">SKU: {{ rec_product.sku }}</span>
+                            </div>
+                            <div class="product-price">
+                                <span class="currency-symbol">{{ currency_symbol }}</span>
+                                <span class="price-amount">{{ rec_product.unit_price }}</span>
+                                <span class="product-rating-inline" title="Rating: {{ rec_product.product_rating }}">
+                                    <i class="fa-solid fa-star" style="color: #f5c518; margin-left:8px;"></i>
+                                    <span class="rating-text" style="margin-left:4px;">{{ rec_product.product_rating }}/5.0</span>
+                                </span>
+                            </div>
+                            <div class="product-actions">
+                                <a href="{% url 'product_detail' rec_product.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
+                            </div>
                         </div>
-                        <a href="{% url 'product_detail' rec_product.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -168,9 +182,21 @@
                             <div class="product-info">
                                 <h3>{{ other.product_name }}</h3>
                                 <p class="product-desc">{{ other.description|truncatewords:10 }}</p>
-                                <p class="product-price"><strong>{{ currency_symbol }}{{ other.unit_price }}</strong></p>
+                                <div class="product-meta">
+                                    <span class="product-sku">SKU: {{ other.sku }}</span>
+                                </div>
+                                <div class="product-price">
+                                    <span class="currency-symbol">{{ currency_symbol }}</span>
+                                    <span class="price-amount">{{ other.unit_price }}</span>
+                                    <span class="product-rating-inline" title="Rating: {{ other.product_rating }}">
+                                        <i class="fa-solid fa-star" style="color: #f5c518; margin-left:8px;"></i>
+                                        <span class="rating-text" style="margin-left:4px;">{{ other.product_rating }}/5.0</span>
+                                    </span>
+                                </div>
+                                <div class="product-actions">
+                                    <a href="{% url 'product_detail' other.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
+                                </div>
                             </div>
-                            <a href="{% url 'product_detail' other.sku %}?currency={{ selected_currency }}" class="btn btn-secondary">View</a>
                         </div>
                     </div>
                     {% endif %}

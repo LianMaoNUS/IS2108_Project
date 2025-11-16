@@ -18,7 +18,4 @@ urlpatterns = [
     path('products/', views.all_productsview.as_view(), name='all_products'),
     path('search/ajax/', views.search_ajax_view.as_view(), name='search_ajax'),
     path('wishlist/', views.wishlist_view.as_view(), name='wishlist'),
-    path('wishlist/add/', views.add_to_wishlist_view.as_view(), name='add_to_wishlist'),
-    path('wishlist/remove/', views.remove_from_wishlist_view.as_view(), name='remove_from_wishlist'),
-    path('wishlist/check/', views.check_wishlist_status_view.as_view(), name='check_wishlist_status'),
 ]

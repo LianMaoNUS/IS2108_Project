@@ -40,11 +40,14 @@
         <div class="nav-links">
             <a class="nav-link" href="{% url 'all_products' %}">Browse</a>
             <a class="nav-link" href="{% url 'about' %}">About</a>
-            <a href="{% url 'wishlist' %}" class="nav-icon wishlist-icon" title="Wishlist">
-                <i class="fa-solid fa-heart"></i>
-            </a>
             <a href="{% url 'profile' %}" class="nav-profile-link">
                 <img src="{{ profile_picture }}" alt="Profile" class="nav-profile-pic">
+            </a>
+            <a href="{% url 'wishlist' %}" class="nav-icon wishlist-icon" title="Wishlist">
+                <i class="fa-solid fa-heart"></i>
+                {% if wishlist_count > 0 %}
+                <span class="wishlist-badge">{{ wishlist_count }}</span>
+                {% endif %}
             </a>
             <a href="{% url 'cart' %}" class="nav-icon cart-icon">
                 <i class="fa-solid fa-cart-shopping"></i>
@@ -52,6 +55,7 @@
                 <span class="cart-badge">{{ cart_count }}</span>
                 {% endif %}
             </a>
+
             <div class="currency-selector">
                 <select class="currency-dropdown" id="currency-selector">
                     <option value="SGD" {% if selected_currency == 'SGD' %}selected{% endif %}>SGD S$</option>

@@ -36,52 +36,16 @@ function initializeStarRating() {
         const starPosition = index + 1;
         
         if (rating >= starPosition) {
-            // Full star
             filledStar.style.width = '100%';
         } else if (rating > index) {
-            // Partial star
             const percentage = ((rating - index) * 100);
             filledStar.style.width = percentage + '%';
         } else {
-            // Empty star
             filledStar.style.width = '0%';
         }
     });
 }
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-function checkWishlistStatus() {
-    const pathParts = window.location.pathname.split('/');
-    const sku = pathParts[pathParts.length - 2];
-    
-    fetch(`/wishlist/check/?sku=${encodeURIComponent(sku)}`)
-        .then(response => response.json())
-        .then(data => {
-            const wishlistBtn = document.getElementById('wishlist-btn');
-            if (wishlistBtn) {
-                if (data.in_wishlist) {
-                    wishlistBtn.classList.add('in-wishlist');
-                } else {
-                    wishlistBtn.classList.remove('in-wishlist');
-                }
-            }
-        })
-        .catch(error => console.error('Error checking wishlist status:', error));
-}
 
 function toggleWishlist(event) {
     event.preventDefault();
@@ -91,71 +55,18 @@ function toggleWishlist(event) {
     const wishlistBtn = document.getElementById('wishlist-btn');
     const isInWishlist = wishlistBtn.classList.contains('in-wishlist');
     
-    const url = isInWishlist ? '/wishlist/remove/' : '/wishlist/add/';
-    const csrftoken = getCookie('csrftoken');
+    const url = new URL(window.location.href);
+    url.searchParams.set('sku', sku);
     
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrftoken
-        },
-        body: `sku=${encodeURIComponent(sku)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (data.in_wishlist) {
-                wishlistBtn.classList.add('in-wishlist');
-                showNotification('Added to wishlist!', 'success');
-            } else {
-                wishlistBtn.classList.remove('in-wishlist');
-                showNotification('Removed from wishlist', 'info');
-            }
-        } else {
-            showNotification(data.error || 'An error occurred', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('An error occurred', 'error');
-    });
-}
-
-function showNotification(message, type) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `wishlist-notification ${type}`;
-    notification.textContent = message;
+    if (isInWishlist) {
+        url.searchParams.set('remove_from_wishlist', 'true');
+    } else {
+        url.searchParams.set('add_to_wishlist', 'true');
+    }
     
-    // Add to body
-    document.body.appendChild(notification);
-    
-    // Show notification
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
+    window.location.href = url.toString();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeStarRating();
-    checkWishlistStatus();
-    
-    const currencySelector = document.getElementById('currency-selector');
-    if (currencySelector) {
-        currencySelector.addEventListener('change', function() {
-            const selectedCurrency = this.value;
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('currency', selectedCurrency);
-            window.location.href = currentUrl.toString();
-        });
-    }
 });

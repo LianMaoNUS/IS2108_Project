@@ -18,7 +18,7 @@ from django.conf import settings
 import pandas as pd
 
 from admin_panel.models import Product, Category, Order, OrderItem, Review, Coupon, CouponUsage
-from admin_panel.forms import ReviewForm as AdminReviewForm # Renamed to avoid conflict
+from admin_panel.forms import ReviewForm 
 
 from .models import Customer, Wishlist
 from .forms import (
@@ -71,54 +71,45 @@ def get_cart_count(request):
     return len(cart)
 
 
+def make_coupon_code(base_code, customer=None):
+    if customer:
+        return f"{base_code}_{customer.customer_id[2:6].upper()}"
+    else:
+        return base_code
+
+
 class BaseView(View):
     def get_base_context(self, request):
+        username = request.session.get('customer_username')
+        if username:
+            try:
+                customer = Customer.objects.get(username=username)
+                wishlist_count = Wishlist.objects.filter(customer=customer).count()
+            except Customer.DoesNotExist:
+                wishlist_count = 0
+        else:
+            wishlist_count = 0
         base_context = {
-            'username': request.session.get('customer_username'),
+            'username': username,
             'profile_picture': request.session.get('customer_profile_picture'),
             'cart_count': get_cart_count(request),
+            'wishlist_count': wishlist_count,
         }
-        try:
-            currency_context = get_currency_context(request)
-            base_context.update(currency_context)
-        except Exception:
-            pass
+        base_context.update(get_currency_context(request))
         return base_context
-    
-    def render_with_base(self, request, template_name, context=None, status=None):
-        context = context or {}
+
+    def render_with_base(self, request, template_name, context=None):
+        if context is None:
+            context = {}
         base = self.get_base_context(request)
         merged = {**base, **context}
-        if status is not None:
-            return render(request, template_name, merged, status=status)
         return render(request, template_name, merged)
-
-
-def make_coupon_code(prefix, customer=None, coupon_cat=None, length=4):
-    base = str(prefix)
-    if customer:
-        try:
-            base += customer.customer_id[10:15].upper()
-        except Exception:
-            pass
-    elif coupon_cat:
-        base += coupon_cat[:3].upper()
-
-    for _ in range(5):
-        suffix = uuid.uuid4().hex[:length].upper()
-        candidate = f"{base}{suffix}"
-        if not Coupon.objects.filter(code=candidate).exists():
-            return candidate
-
-    return f"{base}{int(datetime.now().timestamp()) % (10 ** length):0{length}d}"
-
+    
 model_path = os.path.join(os.path.dirname(__file__), 'prediction_data', 'b2c_customers_100.joblib')
 try:
     preferred_model = joblib.load(model_path)
 except Exception as e:
     preferred_model = None
-    print(f"Could not load preferred category model: {e}")
-
 
 def predict_preferred_category(customer_data):
     if preferred_model is None:
@@ -215,10 +206,8 @@ def get_next_best_action(request, current_category=None):
         if cart:
             cart_skus = list(cart.keys())
             recommended_skus = get_recommendations(cart_skus, top_n=5)
-            print("Recommended SKUs:", recommended_skus)
             
             if recommended_skus:
-                # Get categories from recommended products
                 recommended_products = Product.objects.filter(sku__in=recommended_skus)
                 recommended_categories = set()
                 
@@ -227,7 +216,6 @@ def get_next_best_action(request, current_category=None):
                         if current_category is None or product.category.name != current_category:
                             recommended_categories.add(product.category)
                 
-                # Pick the first recommended category
                 if recommended_categories:
                     rec_cat = list(recommended_categories)[0]
                     product_count = Product.objects.filter(category=rec_cat).count()
@@ -242,7 +230,6 @@ def get_next_best_action(request, current_category=None):
                             'color': '#667eea'
                         })
             else:
-                # Fallback: If no recommendations, suggest random category not in cart
                 related_cats = all_categories.exclude(name__in=cart_categories)
                 if current_category:
                     related_cats = related_cats.exclude(name=current_category)
@@ -302,11 +289,9 @@ def get_next_best_action(request, current_category=None):
                     'color': '#f59e0b'
                 })
         
-        # Return up to 2 best actions
         return actions[:2]
         
     except Exception as e:
-        print(f"Error in get_next_best_action: {str(e)}")
         return []
 
 
@@ -392,7 +377,6 @@ class new_userview(BaseView):
         if logged_in_username and not request.session.get('new_user_username'):
             try:
                 customer = Customer.objects.get(username=logged_in_username)
-                # Set sessions for profile update
                 request.session['new_user_username'] = customer.username
                 request.session['new_user_password'] = customer.password
                 request.session['updating_profile'] = True
@@ -401,8 +385,7 @@ class new_userview(BaseView):
         
         username = request.session.get('new_user_username')
         initial_data = {'username': username} if username else {}
-        
-        # Pre-populate form with existing customer data if updating profile
+
         if request.session.get('updating_profile') and logged_in_username:
             try:
                 customer = Customer.objects.get(username=logged_in_username)
@@ -460,7 +443,7 @@ class new_userview(BaseView):
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=timezone.localdate(),
-                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
+                    valid_until=timezone.localdate() + timedelta(days=365),
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -489,7 +472,6 @@ class new_userview(BaseView):
                 pass
         
         if form.is_valid():
-            print("Form is valid")
             customer_data = form.cleaned_data  
             customer_preferred = {
                 'age': customer_data.get('age'),
@@ -522,7 +504,7 @@ class new_userview(BaseView):
                     discount_percentage=40,
                     description='40% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=timezone.localdate(),
-                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
+                    valid_until=timezone.localdate() + timedelta(days=365), 
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -547,7 +529,6 @@ class new_userview(BaseView):
                     )
                     customer.save()
             else:
-                # Create new customer
                 customer = Customer(
                     username=username,
                     password=password,
@@ -569,7 +550,7 @@ class new_userview(BaseView):
                     discount_percentage=10,
                     description='Welcome bonus! 10% discount (Up till S$50) for updating customer information. Max 1 time use, min spend S$50',
                     valid_from=timezone.localdate(),
-                    valid_until=timezone.localdate() + timedelta(days=365),  # Valid for 1 year
+                    valid_until=timezone.localdate() + timedelta(days=365),
                     usage_limit=1,
                     minimum_order_value=Decimal('50.00'),
                     maximum_discount=Decimal('50.00'),
@@ -580,7 +561,6 @@ class new_userview(BaseView):
                 request.session['customer_username'] = username
                 request.session['customer_profile_picture'] = customer.profile_picture
             
-            # Clean up sessions
             request.session.pop('new_user', None)
             request.session.pop('new_user_username', None)
             request.session.pop('new_user_password', None)
@@ -603,15 +583,11 @@ class mainpageview(BaseView):
         request.session['preferred_category'] = pref
 
         if pref and isinstance(pref, str) and pref.lower() != 'none':
-            # main_category: the single preferred category
             main_category = Category.objects.filter(name=pref)
-            # more_categories: up to 11 other top-level categories
             more_categories = Category.objects.filter(parent_category__isnull=True).exclude(name=pref)[:11]
             products = Product.objects.filter(category__in=main_category).distinct()[:12]
             recommendation_reason = f"you selected '{pref}' as your interest during onboarding"
         else:
-            # No preferred category: present 12 categories total in the
-            # `more_categories` slot so the template shows them all.
             main_category = Category.objects.none()
             more_categories = Category.objects.filter(parent_category__isnull=True)[:12]
             products = Product.objects.filter(category__in=more_categories).distinct()[:12]
@@ -637,6 +613,8 @@ class product_detailview(BaseView):
     template_name = 'customer_website/product_detail.html'
 
     def get(self, request, sku, *args, **kwargs):
+        username = request.session.get('customer_username')
+        
         try:     
             product = Product.objects.get(sku=sku)
             currency_context = get_currency_context(request)
@@ -667,7 +645,33 @@ class product_detailview(BaseView):
                 if currency:
                     redirect_url += f"&currency={currency}"
                 
+                if 'from_wishlist' in request.GET:
+                    redirect_url = reverse('wishlist') + '?cart_added=true'
+                    if currency:
+                        redirect_url += f"&currency={currency}"
+                
                 return redirect(redirect_url)
+            
+            if 'add_to_wishlist' in request.GET:
+                sku = request.GET.get('sku')
+                if username:
+                    try:
+                        customer = Customer.objects.get(username=username)
+                        product = Product.objects.get(sku=sku)
+                        Wishlist.objects.get_or_create(customer=customer, product=product)
+                    except (Customer.DoesNotExist, Product.DoesNotExist):
+                        pass
+                return redirect(reverse('product_detail', kwargs={'sku': sku}) + '?wishlist_added=true')
+            
+            if 'remove_from_wishlist' in request.GET:
+                sku = request.GET.get('sku')
+                if username:
+                    try:
+                        customer = Customer.objects.get(username=username)
+                        Wishlist.objects.filter(customer=customer, product__sku=sku).delete()
+                    except Customer.DoesNotExist:
+                        pass
+                return redirect(reverse('product_detail', kwargs={'sku': sku}) + '?wishlist_removed=true')
             
             recommended_products_sku = get_recommendations([sku], top_n=4)
             recommended_products = Product.objects.filter(sku__in=recommended_products_sku)
@@ -698,12 +702,21 @@ class product_detailview(BaseView):
             except Exception:
                 other_products = Product.objects.none()
 
+            if username:
+                in_wishlist = Wishlist.objects.filter(customer__username=username, product__sku=sku).exists()
+            else:
+                in_wishlist = False
+
+            wishlist_added = request.GET.get('wishlist_added') == 'true'
+
             context = {
                 'product': product,
                 'recommended_products': recommended_products,
                 'other_products': other_products,
                 'cart_added': cart_added,
                 'recommended_title': recommended_title if 'recommended_title' in locals() else False,
+                'in_wishlist': in_wishlist,
+                'wishlist_added': wishlist_added,
             }
             context.update(currency_context)
             
@@ -713,6 +726,7 @@ class product_detailview(BaseView):
             context = {
                 'product': None,  
                 'recommended_products': [],
+                'in_wishlist': False,
             }
             context.update(currency_context)
             
@@ -956,19 +970,14 @@ class checkout_page(BaseView):
                 'checkout_form': None,
             })
 
-        cart_items, totals = self._calculate_cart_totals(request, cart)
-        
+        cart_items, totals = self._calculate_cart_totals(request, cart) 
         checkout_form = CheckoutForm()
-        
-        currency_context = get_currency_context(request)
-        
-        # Get available coupons for this customer
+        currency_context = get_currency_context(request) 
         username = request.session.get('customer_username')
         customer = None
         if username:
             try:
                 customer = Customer.objects.get(username=username)
-                # Get coupons available to this customer
                 general_coupons = Coupon.objects.filter(
                     is_active=True,
                     valid_from__lte=datetime.now(),
@@ -998,10 +1007,8 @@ class checkout_page(BaseView):
                         if not c.can_be_used_by(customer):
                             continue
                         if subtotal_in_sgd is not None and c.minimum_order_value and c.minimum_order_value > 0:
-                            # only include if cart subtotal (SGD) meets coupon minimum
                             if subtotal_in_sgd < c.minimum_order_value:
                                 continue
-                        # If coupon restricts applicable categories, ensure cart has at least one eligible item
                         try:
                             if c.applicable_categories.exists():
                                 eligible_cat_ids = set(c.applicable_categories.values_list('pk', flat=True))
@@ -1022,7 +1029,6 @@ class checkout_page(BaseView):
 
                         filtered.append(c)
                     except Exception:
-                        # If any coupon method raises, skip that coupon
                         continue
 
                 available_coupons = filtered
@@ -1031,7 +1037,6 @@ class checkout_page(BaseView):
         else:
             available_coupons = Coupon.objects.none()
 
-        # Handle coupon code from URL parameter
         discount_amount = Decimal('0.00')
         selected_coupon_code = request.GET.get('coupon_code', '').strip()
         coupon_error = None
@@ -1048,7 +1053,6 @@ class checkout_page(BaseView):
                 elif CouponUsage.objects.filter(coupon=coupon, customer=customer).exists():
                     coupon_error = 'You have already used this coupon.'
                 else:
-                    # Determine eligible subtotal in SGD based on coupon applicable categories
                     subtotal_in_sgd = (totals['subtotal'] / currency_context['currency_info']['rate']).quantize(Decimal('0.01'))
                     eligible_subtotal_sgd = subtotal_in_sgd
                     try:
@@ -1061,15 +1065,12 @@ class checkout_page(BaseView):
                                 except Product.DoesNotExist:
                                     continue
                                 if prod and prod.category and prod.category.pk in eligible_cat_ids:
-                                    # item['unit_price'] is in selected currency; convert to SGD
                                     item_unit_sgd = (it['unit_price'] / currency_context['currency_info']['rate']).quantize(Decimal('0.01'))
                                     eligible_sum += item_unit_sgd * it.get('quantity', 1)
                             eligible_subtotal_sgd = eligible_sum
                     except Exception:
-                        # If something fails, fall back to full subtotal
                         eligible_subtotal_sgd = subtotal_in_sgd
 
-                    # If no eligible items, coupon does not apply
                     if eligible_subtotal_sgd <= 0:
                         coupon_error = 'The coupon does not apply to items in your cart.'
                     else:
@@ -1077,16 +1078,14 @@ class checkout_page(BaseView):
                         if discount_amount <= 0:
                             coupon_error = 'The coupon does not apply to this order.'
                         else:
-                            # convert discount back to display currency
                             discount_amount = discount_amount * currency_context['currency_info']['rate']
                             final_total = totals['total'] - discount_amount
                         
             except Coupon.DoesNotExist:
-                coupon_error = 'Invalid coupon code.'
+                coupon_error = 'Invalid coupon code (does not exist).'
         
         if selected_coupon_code:
             checkout_form.initial['coupon_code'] = selected_coupon_code
-            # persist selected coupon so it survives a full-page reload and form submit
             request.session['selected_coupon_code'] = selected_coupon_code
 
         context = {
@@ -1121,7 +1120,6 @@ class checkout_page(BaseView):
                 request.session.modified = True
                 return redirect('order_confirmation', order_id=order_result['order_id'])
             else:
-                print("Order processing error:", order_result['error'])
                 context = {
                     'cart_items': cart_items,
                     'subtotal': totals['subtotal'],
@@ -1217,7 +1215,6 @@ class checkout_page(BaseView):
             except Exception:
                 has_available_coupons = False
 
-            # Only validate/apply coupon if user actually has coupons available.
             if coupon_code and has_available_coupons:
                 
                 try:
@@ -1317,7 +1314,6 @@ class checkout_page(BaseView):
                         'success': False,
                         'error': f'Product {item["sku"]} not found.'
                     }
-            print(f"coupon: {coupon}")
             if coupon:
                 CouponUsage.objects.create(
                     coupon=coupon,
@@ -1405,7 +1401,7 @@ class checkout_page(BaseView):
                     category = Category.objects.get(name=coupon_cat)
                     coupon.applicable_categories.add(category)
                 except Category.DoesNotExist:
-                    pass  # Leave as all categories
+                    pass  
             
             coupon.assigned_customers.add(customer)
             
@@ -1501,7 +1497,6 @@ class profile_page(BaseView):
                 item_total = item.converted_price * item.quantity
                 order_total += item_total
                 
-                # Check if customer has already reviewed this product
                 existing_review = Review.objects.filter(
                     product=item.product,
                     customer=customer
@@ -1676,7 +1671,6 @@ class ForgotPasswordView(BaseView):
         
         if form.is_valid():
             username = form.cleaned_data['username']
-            print("USERNAME:", username)
             email = form.cleaned_data['email']
             
             reset_url = request.build_absolute_uri(
@@ -1769,7 +1763,6 @@ class ResetPasswordView(BaseView):
         except Customer.DoesNotExist:
             return redirect('login')
 
-
 class wishlist_view(BaseView):
     template_name = 'customer_website/wishlist.html'
 
@@ -1780,131 +1773,55 @@ class wishlist_view(BaseView):
         
         try:
             customer = Customer.objects.get(username=username)
-            wishlist_items = Wishlist.objects.filter(customer=customer).select_related('product')
-            
-            currency_context = get_currency_context(request)
-            
-            # Convert prices for wishlist items
-            wishlist_products = []
-            for wishlist_item in wishlist_items:
-                product = wishlist_item.product
-                converted_price = convert_cart_prices(product.unit_price, currency_context['currency_info'])
-                wishlist_products.append({
-                    'wishlist_id': wishlist_item.wishlist_id,
-                    'sku': product.sku,
-                    'product_name': product.product_name,
-                    'description': product.description,
-                    'unit_price': converted_price,
-                    'product_image': product.product_image,
-                    'product_rating': product.product_rating,
-                    'quantity_on_hand': product.quantity_on_hand,
-                    'added_date': wishlist_item.added_date,
-                })
-            
-            context = {
-                'wishlist_items': wishlist_products,
-                'wishlist_count': len(wishlist_products),
-            }
-            context.update(currency_context)
-            
-            return self.render_with_base(request, self.template_name, context)
-            
         except Customer.DoesNotExist:
             return redirect('login')
 
+        remove_sku = request.GET.get('remove_sku')
+        if remove_sku:
+            try:
+                product = Product.objects.get(sku=remove_sku)
+                Wishlist.objects.filter(customer=customer, product=product).delete()
+            except Product.DoesNotExist:
+                pass
+            return redirect('wishlist')
 
-class add_to_wishlist_view(BaseView):
+        wishlist_items = Wishlist.objects.filter(customer=customer).select_related('product')
+        
+        currency_context = get_currency_context(request)
+        
+        wishlist_products = []
+        for wishlist_item in wishlist_items:
+            product = wishlist_item.product
+            converted_price = convert_cart_prices(product.unit_price, currency_context['currency_info'])
+            wishlist_products.append({
+                'wishlist_id': wishlist_item.wishlist_id,
+                'sku': product.sku,
+                'product_name': product.product_name,
+                'description': product.description,
+                'unit_price': converted_price,
+                'product_image': product.product_image,
+                'product_rating': product.product_rating,
+                'quantity_on_hand': product.quantity_on_hand,
+                'added_date': wishlist_item.added_date,
+            })
+        
+        context = {
+            'wishlist_items': wishlist_products,
+            'wishlist_count': len(wishlist_products),
+            'cart_skus': list(request.session.get('cart', {}).keys()),
+        }
+        context.update(currency_context)
+        
+        return self.render_with_base(request, self.template_name, context)
+
     def post(self, request, *args, **kwargs):
         username = request.session.get('customer_username')
         if not username:
-            return JsonResponse({'success': False, 'error': 'Please log in to add items to wishlist'}, status=401)
+            return redirect('login')
         
         try:
             customer = Customer.objects.get(username=username)
-            product_sku = request.POST.get('sku')
-            
-            if not product_sku:
-                return JsonResponse({'success': False, 'error': 'Product SKU is required'}, status=400)
-            
-            try:
-                product = Product.objects.get(sku=product_sku)
-            except Product.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'Product not found'}, status=404)
-            
-            # Check if already in wishlist
-            wishlist_item, created = Wishlist.objects.get_or_create(
-                customer=customer,
-                product=product
-            )
-            
-            if created:
-                return JsonResponse({
-                    'success': True, 
-                    'message': 'Product added to wishlist',
-                    'in_wishlist': True
-                })
-            else:
-                return JsonResponse({
-                    'success': True, 
-                    'message': 'Product already in wishlist',
-                    'in_wishlist': True
-                })
-                
         except Customer.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Customer not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return redirect('login')
 
-
-class remove_from_wishlist_view(BaseView):
-    def post(self, request, *args, **kwargs):
-        username = request.session.get('customer_username')
-        if not username:
-            return JsonResponse({'success': False, 'error': 'Please log in'}, status=401)
-        
-        try:
-            customer = Customer.objects.get(username=username)
-            product_sku = request.POST.get('sku')
-            
-            if not product_sku:
-                return JsonResponse({'success': False, 'error': 'Product SKU is required'}, status=400)
-            
-            try:
-                product = Product.objects.get(sku=product_sku)
-                wishlist_item = Wishlist.objects.get(customer=customer, product=product)
-                wishlist_item.delete()
-                
-                return JsonResponse({
-                    'success': True, 
-                    'message': 'Product removed from wishlist',
-                    'in_wishlist': False
-                })
-                
-            except Product.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'Product not found'}, status=404)
-            except Wishlist.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'Product not in wishlist'}, status=404)
-                
-        except Customer.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Customer not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-
-class check_wishlist_status_view(BaseView):
-    def get(self, request, *args, **kwargs):
-        username = request.session.get('customer_username')
-        product_sku = request.GET.get('sku')
-        
-        if not username or not product_sku:
-            return JsonResponse({'in_wishlist': False})
-        
-        try:
-            customer = Customer.objects.get(username=username)
-            product = Product.objects.get(sku=product_sku)
-            in_wishlist = Wishlist.objects.filter(customer=customer, product=product).exists()
-            
-            return JsonResponse({'in_wishlist': in_wishlist})
-            
-        except (Customer.DoesNotExist, Product.DoesNotExist):
-            return JsonResponse({'in_wishlist': False})
+        return redirect('wishlist')

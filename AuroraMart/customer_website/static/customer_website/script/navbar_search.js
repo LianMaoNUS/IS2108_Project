@@ -140,7 +140,6 @@ function clearSearch() {
     }
 }
 
-// Currency selector functionality
 function initializeCurrencySelector() {
     const currencySelector = document.getElementById('currency-selector');
     if (!currencySelector) return;
@@ -153,6 +152,5 @@ function initializeCurrencySelector() {
     });
 }
 
-// Export functions for global access
 window.clearSearch = clearSearch;
 window.performNavbarSearch = performNavbarSearch;

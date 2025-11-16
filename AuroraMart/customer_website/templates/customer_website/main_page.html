@@ -91,9 +91,21 @@
                         <div class="product-info">
                             <h3>{{ product.product_name }}</h3>
                             <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
-                            <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
+                            <div class="product-meta">
+                                <span class="product-sku">SKU: {{ product.sku }}</span>
+                            </div>
+                            <div class="product-price">
+                                <span class="currency-symbol">{{ currency_symbol }}</span>
+                                <span class="price-amount">{{ product.unit_price }}</span>
+                                <span class="product-rating-inline" title="Rating: {{ product.product_rating }}">
+                                    <i class="fa-solid fa-star" style="color: #f5c518; margin-left:8px;"></i>
+                                    <span class="rating-text" style="margin-left:4px;">{{ product.product_rating }}/5.0</span>
+                                </span>
+                            </div>
+                            <div class="product-actions">
+                                <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
+                            </div>
                         </div>
-                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
                     </div>
 
                 </div>
@@ -127,9 +139,21 @@
                         <div class="product-info">
                             <h3>{{ product.product_name }}</h3>
                             <p class="product-desc">{{ product.description|truncatewords:10 }}</p>
-                            <p class="product-price"><strong>{{ currency_symbol }}{{ product.unit_price }}</strong></p>
+                            <div class="product-meta">
+                                <span class="product-sku">SKU: {{ product.sku }}</span>
+                            </div>
+                            <div class="product-price">
+                                <span class="currency-symbol">{{ currency_symbol }}</span>
+                                <span class="price-amount">{{ product.unit_price }}</span>
+                                <span class="product-rating-inline" title="Rating: {{ product.product_rating }}">
+                                    <i class="fa-solid fa-star" style="color: #f5c518; margin-left:8px;"></i>
+                                    <span class="rating-text" style="margin-left:4px;">{{ product.product_rating }}/5.0</span>
+                                </span>
+                            </div>
+                            <div class="product-actions">
+                                <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
+                            </div>
                         </div>
-                        <a href="{% url 'product_detail' product.sku %}" class="btn btn-secondary">View</a>
                     </div>
 
                 </div>

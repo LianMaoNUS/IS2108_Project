@@ -84,7 +84,6 @@ function formatCVV(input) {
     input.value = input.value.replace(/\D/g, '').substring(0, 4);
 }
 
-// Form Submission UI
 function initializeFormSubmission() {
     const form = document.getElementById('checkout-form');
     if (!form) return;

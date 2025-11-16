@@ -18,9 +18,9 @@
     <div class="wishlist-grid">
         {% for item in wishlist_items %}
         <div class="wishlist-card" data-sku="{{ item.sku }}">
-            <button class="remove-wishlist-btn" onclick="removeFromWishlist('{{ item.sku }}')" title="Remove from wishlist">
+            <a href="?remove_sku={{ item.sku|urlencode }}" class="remove-wishlist-btn" title="Remove from wishlist">
                 <i class="fa-solid fa-times"></i>
-            </button>
+            </a>
             
             <a href="{% url 'product_detail' item.sku %}?currency={{ selected_currency }}" class="wishlist-product-link">
                 <div class="wishlist-product-image">
@@ -64,8 +64,8 @@
                             </span>
                         {% endif %}
                     </div>
+                
                     
-                    <p class="added-date">Added on {{ item.added_date|date:"M d, Y" }}</p>
                 </div>
             </a>
             
@@ -74,9 +74,15 @@
                     <i class="fa-solid fa-eye"></i> View Product
                 </a>
                 {% if item.quantity_on_hand > 0 %}
-                <button class="btn btn-secondary" onclick="addToCartFromWishlist('{{ item.sku }}')">
-                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
-                </button>
+                    {% if item.sku in cart_skus %}
+                        <div class="btn btn-success">
+                            <i class="fa-solid fa-check-circle"></i> Item in Cart
+                        </div>
+                    {% else %}
+                        <button class="btn btn-secondary" onclick="addToCartFromWishlist('{{ item.sku }}')">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -95,106 +101,5 @@
     </div>
     {% endif %}
 </div>
-
-<script>
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-function removeFromWishlist(sku) {
-    const csrftoken = getCookie('csrftoken');
-    
-    fetch('/wishlist/remove/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrftoken
-        },
-        body: `sku=${encodeURIComponent(sku)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Remove the card from the page
-            const card = document.querySelector(`.wishlist-card[data-sku="${sku}"]`);
-            if (card) {
-                card.style.animation = 'fadeOut 0.3s ease';
-                setTimeout(() => {
-                    card.remove();
-                    
-                    // Check if wishlist is now empty
-                    const remainingCards = document.querySelectorAll('.wishlist-card');
-                    if (remainingCards.length === 0) {
-                        location.reload();
-                    } else {
-                        // Update count
-                        const countElement = document.querySelector('.wishlist-count');
-                        if (countElement) {
-                            const currentCount = parseInt(countElement.textContent);
-                            const newCount = currentCount - 1;
-                            countElement.textContent = `${newCount} item${newCount !== 1 ? 's' : ''}`;
-                        }
-                    }
-                }, 300);
-            }
-            showNotification('Removed from wishlist', 'success');
-        } else {
-            showNotification(data.error || 'An error occurred', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('An error occurred', 'error');
-    });
-}
-
-function addToCartFromWishlist(sku) {
-    // Redirect to product detail page with added flag
-    const currency = document.getElementById('currency-selector').value;
-    window.location.href = `/product/${sku}/?added=true&quantity=1&currency=${currency}`;
-}
-
-function showNotification(message, type) {
-    const notification = document.createElement('div');
-    notification.className = `wishlist-notification ${type}`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
-}
-</script>
-
-<style>
-@keyframes fadeOut {
-    from {
-        opacity: 1;
-        transform: scale(1);
-    }
-    to {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-}
-</style>
+<script src="{% static 'customer_website/script/wishlist.js' %}"></script>
 {% endblock %}
